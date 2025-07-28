@@ -1,13 +1,5 @@
-require('dotenv').config();
-const express = require('express');
 const axios = require('axios');
-const serverless = require('serverless-http');
-const app = express();
-const router = express.Router();
-
-const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
-const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
+require('dotenv').config();
 
 // Helper function to save user data to Netlify Blobs
 async function saveUserData(newUser) {
@@ -28,14 +20,6 @@ async function saveUserData(newUser) {
 
 // Main Netlify Function handler
 exports.handler = async (event, context) => {
-    // Route for the root path
-    if (event.path.endsWith('/api/')) {
-        return {
-            statusCode: 200,
-            body: '<h1>Welcome to the Discord OAuth2 Example App</h1><a href="/api/login">Login with Discord</a>',
-        };
-    }
-
     // Route for initiating Discord OAuth2 login
     if (event.path.endsWith('/api/login')) {
         const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.DISCORD_REDIRECT_URI)}&response_type=code&scope=identify%20email`;
