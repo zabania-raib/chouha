@@ -3,6 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
+const { MongoClient } = require('mongodb');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -10,11 +11,22 @@ const port = process.env.PORT || 3000;
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
+const MONGO_URI = process.env.MONGO_URI;
 
-const USERS_FILE = path.join(__dirname, 'users.json');
+let db;
 
-// Serve static files from the 'public' directory if you have one
-// app.use(express.static('public'));
+async function connectToDb() {
+    if (db) return;
+    try {
+        const client = new MongoClient(MONGO_URI);
+        await client.connect();
+        db = client.db('discord_users');
+        console.log('Successfully connected to MongoDB.');
+    } catch (error) {
+        console.error('Failed to connect to MongoDB:', error);
+        process.exit(1); // Exit the process if DB connection fails
+    }
+}
 
 app.get('/', (req, res) => {
     res.send('<h1>Welcome to the Discord OAuth2 Example App</h1><a href="/login">Login with Discord</a>');
@@ -26,6 +38,8 @@ app.get('/login', (req, res) => {
 });
 
 app.get('/api/auth/discord/redirect', async (req, res) => {
+    await connectToDb();
+
     const { code } = req.query;
 
     if (!code) {
@@ -68,39 +82,35 @@ app.get('/api/auth/discord/redirect', async (req, res) => {
             timestamp: new Date().toISOString()
         };
 
-        // Save user data to users.json
+        // Save user data to MongoDB
         await saveUserData(userData);
 
         res.redirect('https://discord.com/app');
 
     } catch (error) {
-        console.error('Error during Discord OAuth2 flow:', error.response ? error.response.data : error.message);
+        console.error('Error during Discord OAuth2 flow:', error);
         res.status(500).send('An error occurred during authentication.');
     }
 });
 
 async function saveUserData(newUser) {
-    let users = [];
+    if (!db) {
+        console.error('Database not connected. Cannot save user data.');
+        throw new Error('Database not connected');
+    }
+    const usersCollection = db.collection('users');
+
     try {
-        const data = await fs.readFile(USERS_FILE, 'utf8');
-        users = JSON.parse(data);
+        console.log('Attempting to save user data:', newUser);
+        const result = await usersCollection.updateOne(
+            { discordId: newUser.discordId },
+            { $set: newUser },
+            { upsert: true } // This option inserts a new document if no match is found
+        );
+        console.log('User data saved successfully:', result);
     } catch (error) {
-        if (error.code !== 'ENOENT') {
-            console.error('Error reading users.json:', error);
-            throw error;
-        }
-        // File doesn't exist, it will be created.
+        console.error('Error saving user data to MongoDB:', error);
     }
-
-    // Check if user already exists and update their data
-    const userIndex = users.findIndex(user => user.discordId === newUser.discordId);
-    if (userIndex !== -1) {
-        users[userIndex] = { ...users[userIndex], ...newUser }; // Update existing user
-    } else {
-        users.push(newUser); // Add new user
-    }
-
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
 app.get('/success', (req, res) => {
