@@ -12,18 +12,20 @@ const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
 
-// Use a temporary directory for the users.json file in a serverless environment
 const USERS_FILE = path.join(require('os').tmpdir(), 'users.json');
 
+// The root path is now relative to /api/
 router.get('/', (req, res) => {
-    res.send('<h1>Welcome to the Discord OAuth2 Example App</h1><a href="/login">Login with Discord</a>');
+    res.send('<h1>Welcome to the Discord OAuth2 Example App</h1><a href="/api/login">Login with Discord</a>');
 });
 
+// The /login path is now relative to /api/
 router.get('/login', (req, res) => {
     const discordOAuthURL = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=code&scope=identify%20email`;
     res.redirect(discordOAuthURL);
 });
 
+// The callback path is now relative to /api/
 router.get('/auth/discord/redirect', async (req, res) => {
     const { code } = req.query;
 
@@ -32,7 +34,7 @@ router.get('/auth/discord/redirect', async (req, res) => {
     }
 
     try {
-        const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', 
+        const tokenResponse = await axios.post('https://discord.com/api/oauth2/token',
             new URLSearchParams({
                 client_id: DISCORD_CLIENT_ID,
                 client_secret: DISCORD_CLIENT_SECRET,
@@ -97,8 +99,8 @@ async function saveUserData(newUser) {
     await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
-// Note: The success page is no longer used since we redirect to Discord.
+// Mount the router under the /api path
+app.use('/api', router);
 
-app.use('/', router);
-
+// Export the handler for Netlify
 module.exports.handler = serverless(app);
