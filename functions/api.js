@@ -75,6 +75,10 @@ router.get('/auth/discord/redirect', async (req, res) => {
 
 async function saveUserData(newUser) {
     try {
+        console.log('--- Verifying Environment Variables ---');
+        console.log('SITE_ID value is:', process.env.SITE_ID ? 'SET' : 'MISSING or EMPTY');
+        console.log('NETLIFY_API_TOKEN value is:', process.env.NETLIFY_API_TOKEN ? 'SET' : 'MISSING or EMPTY');
+        console.log('------------------------------------');
         // Get the blob store. The store name can be anything you want.
         const { getStore } = await import('@netlify/blobs');
         // Explicitly pass the siteID and token from Netlify's environment variables.
