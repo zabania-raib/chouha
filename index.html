@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chouha Community - Join Our Discord</title>
+    <title>Chouha Community - Enter the Darkness</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Creepster&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -17,7 +17,7 @@
 
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: radial-gradient(ellipse at center, #1a0000 0%, #000000 70%, #0d0d0d 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -26,7 +26,7 @@
             position: relative;
         }
 
-        /* Animated background particles */
+        /* Animated hellish particles */
         .particles {
             position: absolute;
             top: 0;
@@ -39,96 +39,134 @@
 
         .particle {
             position: absolute;
-            background: rgba(255, 255, 255, 0.1);
+            background: radial-gradient(circle, #ff0000 0%, #8b0000 50%, transparent 70%);
             border-radius: 50%;
-            animation: float 6s ease-in-out infinite;
+            animation: hellFloat 8s ease-in-out infinite;
+            box-shadow: 0 0 20px #ff0000;
         }
 
-        .particle:nth-child(1) { width: 80px; height: 80px; left: 10%; animation-delay: 0s; }
-        .particle:nth-child(2) { width: 60px; height: 60px; left: 20%; animation-delay: 1s; }
-        .particle:nth-child(3) { width: 40px; height: 40px; left: 70%; animation-delay: 2s; }
-        .particle:nth-child(4) { width: 100px; height: 100px; left: 80%; animation-delay: 3s; }
-        .particle:nth-child(5) { width: 50px; height: 50px; left: 50%; animation-delay: 4s; }
+        .particle:nth-child(1) { width: 60px; height: 60px; left: 10%; animation-delay: 0s; }
+        .particle:nth-child(2) { width: 40px; height: 40px; left: 20%; animation-delay: 2s; }
+        .particle:nth-child(3) { width: 80px; height: 80px; left: 70%; animation-delay: 4s; }
+        .particle:nth-child(4) { width: 50px; height: 50px; left: 80%; animation-delay: 6s; }
+        .particle:nth-child(5) { width: 70px; height: 70px; left: 50%; animation-delay: 1s; }
 
-        @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.7; }
-            50% { transform: translateY(-100px) rotate(180deg); opacity: 0.3; }
+        @keyframes hellFloat {
+            0%, 100% { 
+                transform: translateY(0px) rotate(0deg) scale(1); 
+                opacity: 0.3; 
+            }
+            25% { 
+                transform: translateY(-80px) rotate(90deg) scale(1.2); 
+                opacity: 0.8; 
+            }
+            50% { 
+                transform: translateY(-120px) rotate(180deg) scale(0.8); 
+                opacity: 0.5; 
+            }
+            75% { 
+                transform: translateY(-60px) rotate(270deg) scale(1.1); 
+                opacity: 0.7; 
+            }
+        }
+
+        /* Flickering red glow effect */
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
         }
 
         .container {
-            background: rgba(255, 255, 255, 0.95);
+            background: linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%);
             backdrop-filter: blur(20px);
-            border-radius: 24px;
+            border-radius: 20px;
             padding: 60px 50px;
             text-align: center;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 
+                0 0 50px rgba(255, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                0 25px 50px rgba(0, 0, 0, 0.5);
+            border: 2px solid #330000;
             max-width: 500px;
             width: 90%;
             position: relative;
             z-index: 10;
-            animation: slideUp 0.8s ease-out;
+            animation: riseFromHell 1s ease-out;
         }
 
-        @keyframes slideUp {
+        @keyframes riseFromHell {
             from {
                 opacity: 0;
-                transform: translateY(50px);
+                transform: translateY(100px) scale(0.8);
+                filter: blur(10px);
             }
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
+                filter: blur(0);
             }
         }
 
         .logo {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 20px;
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(135deg, #ff0000, #8b0000, #000000);
+            border-radius: 50%;
             margin: 0 auto 30px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 36px;
-            color: white;
+            font-size: 40px;
+            color: #ff0000;
             font-weight: 700;
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+            box-shadow: 
+                0 0 30px rgba(255, 0, 0, 0.5),
+                inset 0 0 20px rgba(0, 0, 0, 0.3);
+            border: 3px solid #330000;
+            animation: flicker 3s ease-in-out infinite;
         }
 
         h1 {
-            font-size: 2.5rem;
+            font-size: 2.8rem;
             font-weight: 700;
-            color: #2d3748;
+            color: #ffffff;
             margin-bottom: 15px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #ff0000, #ff4444, #ffffff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            text-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+            filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.3));
         }
 
         .subtitle {
             font-size: 1.1rem;
-            color: #718096;
+            color: #cccccc;
             margin-bottom: 40px;
             line-height: 1.6;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.2);
         }
 
         .discord-btn {
             display: inline-flex;
             align-items: center;
             gap: 12px;
-            background: #5865F2;
+            background: linear-gradient(135deg, #ff0000, #cc0000, #990000);
             color: white;
             text-decoration: none;
-            padding: 18px 32px;
-            border-radius: 16px;
-            font-size: 1.1rem;
+            padding: 20px 35px;
+            border-radius: 12px;
+            font-size: 1.2rem;
             font-weight: 600;
             transition: all 0.3s ease;
-            box-shadow: 0 8px 25px rgba(88, 101, 242, 0.3);
+            box-shadow: 
+                0 8px 25px rgba(255, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
             position: relative;
             overflow: hidden;
+            border: 2px solid #660000;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .discord-btn::before {
@@ -138,8 +176,8 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.6s;
         }
 
         .discord-btn:hover::before {
@@ -147,43 +185,83 @@
         }
 
         .discord-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 35px rgba(88, 101, 242, 0.4);
-            background: #4752C4;
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 
+                0 15px 40px rgba(255, 0, 0, 0.6),
+                0 0 30px rgba(255, 0, 0, 0.8),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            background: linear-gradient(135deg, #ff3333, #ff0000, #cc0000);
         }
 
         .discord-btn:active {
-            transform: translateY(-1px);
+            transform: translateY(-2px) scale(1.02);
         }
 
         .discord-icon {
-            font-size: 1.3rem;
+            font-size: 1.4rem;
+            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
         }
 
         .features {
             margin-top: 40px;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
             gap: 20px;
         }
 
         .feature {
-            padding: 20px 15px;
-            background: rgba(102, 126, 234, 0.1);
-            border-radius: 16px;
-            border: 1px solid rgba(102, 126, 234, 0.2);
+            padding: 25px 15px;
+            background: linear-gradient(145deg, #1a1a1a, #0a0a0a);
+            border-radius: 12px;
+            border: 2px solid #330000;
+            box-shadow: 
+                0 5px 15px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .feature:hover {
+            transform: translateY(-5px);
+            box-shadow: 
+                0 10px 25px rgba(255, 0, 0, 0.3),
+                0 0 20px rgba(255, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 0, 0, 0.2);
+            border-color: #660000;
         }
 
         .feature-icon {
-            font-size: 1.5rem;
-            color: #667eea;
-            margin-bottom: 8px;
+            font-size: 1.8rem;
+            color: #ff0000;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.5));
+            animation: flicker 4s ease-in-out infinite;
         }
 
         .feature-text {
-            font-size: 0.9rem;
-            color: #4a5568;
-            font-weight: 500;
+            font-size: 0.95rem;
+            color: #ffffff;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-shadow: 0 0 5px rgba(255, 0, 0, 0.3);
+        }
+
+        /* Hellish ambient glow */
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 0, 0, 0.1) 0%, transparent 70%);
+            animation: ambientGlow 6s ease-in-out infinite alternate;
+            z-index: -1;
+        }
+
+        @keyframes ambientGlow {
+            0% { opacity: 0.3; transform: scale(1); }
+            100% { opacity: 0.6; transform: scale(1.1); }
         }
 
         @media (max-width: 768px) {
@@ -193,7 +271,7 @@
             }
             
             h1 {
-                font-size: 2rem;
+                font-size: 2.2rem;
             }
             
             .subtitle {
@@ -201,8 +279,8 @@
             }
             
             .discord-btn {
-                padding: 16px 28px;
-                font-size: 1rem;
+                padding: 18px 30px;
+                font-size: 1.1rem;
             }
         }
     </style>
@@ -218,39 +296,39 @@
 
     <div class="container">
         <div class="logo">
-            <i class="fas fa-users"></i>
+            <i class="fas fa-fire"></i>
         </div>
         
         <h1>Welcome to Chouha Community</h1>
         
         <p class="subtitle">
-            Join our exclusive Discord community and connect with like-minded individuals. 
-            Experience seamless collaboration and engaging discussions.
+            Enter the realm of darkness and join our exclusive underworld community. 
+            Embrace the shadows and connect with fellow souls in the abyss.
         </p>
         
         <a href="/api/login" class="discord-btn">
             <i class="fab fa-discord discord-icon"></i>
-            Join with Discord
+            Enter the Darkness
         </a>
         
         <div class="features">
             <div class="feature">
                 <div class="feature-icon">
-                    <i class="fas fa-shield-alt"></i>
+                    <i class="fas fa-skull"></i>
                 </div>
-                <div class="feature-text">Secure</div>
+                <div class="feature-text">Ruthless</div>
             </div>
             <div class="feature">
                 <div class="feature-icon">
                     <i class="fas fa-bolt"></i>
                 </div>
-                <div class="feature-text">Fast</div>
+                <div class="feature-text">Powerful</div>
             </div>
             <div class="feature">
                 <div class="feature-icon">
-                    <i class="fas fa-heart"></i>
+                    <i class="fas fa-fire-flame-curved"></i>
                 </div>
-                <div class="feature-text">Friendly</div>
+                <div class="feature-text">Infernal</div>
             </div>
         </div>
     </div>
