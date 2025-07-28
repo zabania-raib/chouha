@@ -62,8 +62,8 @@ router.get('/auth/discord/redirect', async (req, res) => {
             timestamp: new Date().toISOString()
         };
 
-        // Pass the Netlify context from the request to the save function
-        await saveUserData(userData, req.requestContext);
+        // Pass the user data to the save function
+        await saveUserData(userData);
 
         res.redirect('https://discord.com/app');
 
@@ -73,12 +73,16 @@ router.get('/auth/discord/redirect', async (req, res) => {
     }
 });
 
-async function saveUserData(newUser, context) {
+async function saveUserData(newUser) {
     try {
         // Get the blob store. The store name can be anything you want.
         const { getStore } = await import('@netlify/blobs');
-        // Pass the context to getStore to grant it the correct permissions
-        const store = getStore('users', { context });
+        // Explicitly pass the siteID and token from Netlify's environment variables.
+        // This is the definitive fix for the environment error.
+        const store = getStore('users', {
+            siteID: process.env.SITE_ID,
+            token: process.env.NETLIFY_API_TOKEN
+        });
         console.log('Attempting to save user data to Netlify Blobs:', newUser);
         // Save the user data. The key is the user's Discord ID to ensure uniqueness.
         await store.set(newUser.discordId, JSON.stringify(newUser));
