@@ -2,8 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const serverless = require('serverless-http');
-const { getStore } = require('@netlify/blobs');
-
 const app = express();
 const router = express.Router();
 
@@ -77,6 +75,7 @@ router.get('/auth/discord/redirect', async (req, res) => {
 async function saveUserData(newUser) {
     try {
         // Get the blob store. The store name can be anything you want.
+        const { getStore } = await import('@netlify/blobs');
         const store = getStore('users');
         console.log('Attempting to save user data to Netlify Blobs:', newUser);
         // Save the user data. The key is the user's Discord ID to ensure uniqueness.
