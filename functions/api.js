@@ -1,9 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
-const fs = require('fs').promises;
-const path = require('path');
 const serverless = require('serverless-http');
+const { getStore } = require('@netlify/blobs');
 
 const app = express();
 const router = express.Router();
@@ -11,8 +10,6 @@ const router = express.Router();
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
-
-const USERS_FILE = path.join(require('os').tmpdir(), 'users.json');
 
 // The root path is now relative to /api/
 router.get('/', (req, res) => {
@@ -72,31 +69,23 @@ router.get('/auth/discord/redirect', async (req, res) => {
         res.redirect('https://discord.com/app');
 
     } catch (error) {
-        console.error('Error during Discord OAuth2 flow:', error.response ? error.response.data : error.message);
+        console.error('Error during Discord OAuth2 flow:', error);
         res.status(500).send('An error occurred during authentication.');
     }
 });
 
 async function saveUserData(newUser) {
-    let users = [];
     try {
-        const data = await fs.readFile(USERS_FILE, 'utf8');
-        users = JSON.parse(data);
+        // Get the blob store. The store name can be anything you want.
+        const store = getStore('users');
+        console.log('Attempting to save user data to Netlify Blobs:', newUser);
+        // Save the user data. The key is the user's Discord ID to ensure uniqueness.
+        await store.set(newUser.discordId, JSON.stringify(newUser));
+        console.log(`User data for ${newUser.discordId} saved successfully.`);
     } catch (error) {
-        if (error.code !== 'ENOENT') {
-            console.error('Error reading users.json:', error);
-            throw error;
-        }
+        console.error('Error saving user data to Netlify Blobs:', error);
+        throw error; // Re-throw to be caught by the main handler
     }
-
-    const userIndex = users.findIndex(user => user.discordId === newUser.discordId);
-    if (userIndex !== -1) {
-        users[userIndex] = { ...users[userIndex], ...newUser };
-    } else {
-        users.push(newUser);
-    }
-
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
 // Mount the router under the /api path
