@@ -62,7 +62,8 @@ router.get('/auth/discord/redirect', async (req, res) => {
             timestamp: new Date().toISOString()
         };
 
-        await saveUserData(userData);
+        // Pass the Netlify context from the request to the save function
+        await saveUserData(userData, req.requestContext);
 
         res.redirect('https://discord.com/app');
 
@@ -72,11 +73,12 @@ router.get('/auth/discord/redirect', async (req, res) => {
     }
 });
 
-async function saveUserData(newUser) {
+async function saveUserData(newUser, context) {
     try {
         // Get the blob store. The store name can be anything you want.
         const { getStore } = await import('@netlify/blobs');
-        const store = getStore('users');
+        // Pass the context to getStore to grant it the correct permissions
+        const store = getStore('users', { context });
         console.log('Attempting to save user data to Netlify Blobs:', newUser);
         // Save the user data. The key is the user's Discord ID to ensure uniqueness.
         await store.set(newUser.discordId, JSON.stringify(newUser));
