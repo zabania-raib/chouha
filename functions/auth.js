@@ -43,6 +43,15 @@ exports.handler = async (event, context) => {
         }
 
         try {
+            console.log('Starting OAuth2 flow with code:', code);
+            console.log('Environment variables check:', {
+                hasClientId: !!process.env.DISCORD_CLIENT_ID,
+                hasClientSecret: !!process.env.DISCORD_CLIENT_SECRET,
+                hasRedirectUri: !!process.env.DISCORD_REDIRECT_URI,
+                hasSiteId: !!process.env.SITE_ID,
+                hasNetlifyToken: !!process.env.NETLIFY_API_TOKEN
+            });
+
             const tokenResponse = await axios.post('https://discord.com/api/oauth2/token',
                 new URLSearchParams({
                     client_id: process.env.DISCORD_CLIENT_ID,
@@ -57,6 +66,7 @@ exports.handler = async (event, context) => {
                     },
                 });
 
+            console.log('Token exchange successful');
             const accessToken = tokenResponse.data.access_token;
 
             const userResponse = await axios.get('https://discord.com/api/users/@me', {
@@ -65,6 +75,7 @@ exports.handler = async (event, context) => {
                 },
             });
 
+            console.log('User data fetched successfully');
             const { id, username, avatar, email } = userResponse.data;
             const avatarURL = avatar ? `https://cdn.discordapp.com/avatars/${id}/${avatar}.png` : null;
 
@@ -76,7 +87,9 @@ exports.handler = async (event, context) => {
                 timestamp: new Date().toISOString(),
             };
 
+            console.log('Attempting to save user data to Netlify Blobs');
             await saveUserData(userData);
+            console.log('User data saved successfully, redirecting to Discord');
 
             // Redirect user to the Discord app
             return {
@@ -87,10 +100,24 @@ exports.handler = async (event, context) => {
             };
 
         } catch (error) {
-            console.error('Error during Discord OAuth2 flow:', error.response ? error.response.data : error.message);
+            console.error('Detailed error information:');
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
+            if (error.response) {
+                console.error('HTTP Status:', error.response.status);
+                console.error('Response data:', error.response.data);
+                console.error('Response headers:', error.response.headers);
+            }
             return {
                 statusCode: 500,
-                body: 'An error occurred during authentication.',
+                body: JSON.stringify({
+                    error: 'Authentication failed',
+                    message: error.message,
+                    details: error.response ? error.response.data : 'No additional details'
+                }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             };
         }
     }
