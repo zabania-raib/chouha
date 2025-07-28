@@ -99,6 +99,6 @@ async function saveUserData(newUser) {
 
 // Note: The success page is no longer used since we redirect to Discord.
 
-app.use('/.netlify/functions/api', router);
+app.use('/', router);
 
 module.exports.handler = serverless(app);
