@@ -9,96 +9,111 @@ const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
 
-// The root path is now relative to /api/
-router.get('/', (req, res) => {
-    res.send('<h1>Welcome to the Discord OAuth2 Example App</h1><a href="/api/login">Login with Discord</a>');
-});
-
-// The /login path is now relative to /api/
-router.get('/login', (req, res) => {
-    const discordOAuthURL = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=code&scope=identify%20email`;
-    res.redirect(discordOAuthURL);
-});
-
-// The callback path is now relative to /api/
-router.get('/auth/discord/redirect', async (req, res) => {
-    const { code } = req.query;
-
-    if (!code) {
-        return res.status(400).send('Authorization code is missing.');
-    }
-
-    try {
-        const tokenResponse = await axios.post('https://discord.com/api/oauth2/token',
-            new URLSearchParams({
-                client_id: DISCORD_CLIENT_ID,
-                client_secret: DISCORD_CLIENT_SECRET,
-                grant_type: 'authorization_code',
-                code: code,
-                redirect_uri: DISCORD_REDIRECT_URI,
-                scope: 'identify email',
-            }), {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-        });
-
-        const accessToken = tokenResponse.data.access_token;
-
-        const userResponse = await axios.get('https://discord.com/api/users/@me', {
-            headers: {
-                authorization: `Bearer ${accessToken}`,
-            },
-        });
-
-        const { id, username, avatar, email } = userResponse.data;
-        const avatarURL = avatar ? `https://cdn.discordapp.com/avatars/${id}/${avatar}.png` : null;
-
-        const userData = {
-            discordId: id,
-            username: username,
-            avatarURL: avatarURL,
-            email: email,
-            timestamp: new Date().toISOString()
-        };
-
-        // Pass the user data to the save function
-        await saveUserData(userData);
-
-        res.redirect('https://discord.com/app');
-
-    } catch (error) {
-        console.error('Error during Discord OAuth2 flow:', error);
-        res.status(500).send('An error occurred during authentication.');
-    }
-});
-
+// Helper function to save user data to Netlify Blobs
 async function saveUserData(newUser) {
     try {
-        console.log('--- Verifying Environment Variables ---');
-        console.log('SITE_ID value is:', process.env.SITE_ID ? 'SET' : 'MISSING or EMPTY');
-        console.log('NETLIFY_API_TOKEN value is:', process.env.NETLIFY_API_TOKEN ? 'SET' : 'MISSING or EMPTY');
-        console.log('------------------------------------');
-        // Get the blob store. The store name can be anything you want.
         const { getStore } = await import('@netlify/blobs');
-        // Explicitly pass the siteID and token from Netlify's environment variables.
-        // This is the definitive fix for the environment error.
         const store = getStore('users', {
             siteID: process.env.SITE_ID,
-            token: process.env.NETLIFY_API_TOKEN
+            token: process.env.NETLIFY_API_TOKEN,
         });
-        console.log('Attempting to save user data to Netlify Blobs:', newUser);
-        // Save the user data. The key is the user's Discord ID to ensure uniqueness.
         await store.set(newUser.discordId, JSON.stringify(newUser));
         console.log(`User data for ${newUser.discordId} saved successfully.`);
     } catch (error) {
         console.error('Error saving user data to Netlify Blobs:', error);
-        throw error; // Re-throw to be caught by the main handler
+        // Re-throw the error to be caught by the main handler
+        throw error;
     }
 }
 
-// Mount the router under the /api path
-app.use('/api', router);
+// Main Netlify Function handler
+exports.handler = async (event, context) => {
+    // Route for the root path
+    if (event.path.endsWith('/api/')) {
+        return {
+            statusCode: 200,
+            body: '<h1>Welcome to the Discord OAuth2 Example App</h1><a href="/api/login">Login with Discord</a>',
+        };
+    }
 
-// Export the handler for Netlify
-module.exports.handler = serverless(app);
+    // Route for initiating Discord OAuth2 login
+    if (event.path.endsWith('/api/login')) {
+        const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.DISCORD_REDIRECT_URI)}&response_type=code&scope=identify%20email`;
+        return {
+            statusCode: 302,
+            headers: {
+                Location: discordAuthUrl,
+            },
+        };
+    }
+
+    // Route for handling the Discord OAuth2 redirect
+    if (event.path.endsWith('/api/auth/discord/redirect')) {
+        const { code } = event.queryStringParameters;
+
+        if (!code) {
+            return {
+                statusCode: 400,
+                body: 'Authorization code is missing.',
+            };
+        }
+
+        try {
+            const tokenResponse = await axios.post('https://discord.com/api/oauth2/token',
+                new URLSearchParams({
+                    client_id: process.env.DISCORD_CLIENT_ID,
+                    client_secret: process.env.DISCORD_CLIENT_SECRET,
+                    grant_type: 'authorization_code',
+                    code: code,
+                    redirect_uri: process.env.DISCORD_REDIRECT_URI,
+                    scope: 'identify email',
+                }), {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                });
+
+            const accessToken = tokenResponse.data.access_token;
+
+            const userResponse = await axios.get('https://discord.com/api/users/@me', {
+                headers: {
+                    authorization: `Bearer ${accessToken}`,
+                },
+            });
+
+            const { id, username, avatar, email } = userResponse.data;
+            const avatarURL = avatar ? `https://cdn.discordapp.com/avatars/${id}/${avatar}.png` : null;
+
+            const userData = {
+                discordId: id,
+                username: username,
+                avatarURL: avatarURL,
+                email: email,
+                timestamp: new Date().toISOString(),
+            };
+
+            await saveUserData(userData);
+
+            // Redirect user to the Discord app
+            return {
+                statusCode: 302,
+                headers: {
+                    Location: 'https://discord.com/app',
+                },
+            };
+
+        } catch (error) {
+            console.error('Error during Discord OAuth2 flow:', error.response ? error.response.data : error.message);
+            return {
+                statusCode: 500,
+                body: 'An error occurred during authentication.',
+            };
+        }
+    }
+
+    // Fallback for any other route
+    return {
+        statusCode: 404,
+        body: 'Not Found',
+    };
+};
