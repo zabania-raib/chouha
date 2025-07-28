@@ -24,7 +24,7 @@ router.get('/login', (req, res) => {
     res.redirect(discordOAuthURL);
 });
 
-router.get('/api/auth/discord/redirect', async (req, res) => {
+router.get('/auth/discord/redirect', async (req, res) => {
     const { code } = req.query;
 
     if (!code) {
