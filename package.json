@@ -4,11 +4,14 @@
   "description": "A simple Node.js app with Discord OAuth2 authentication.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "bot": "node discord-bot.js"
   },
   "dependencies": {
     "@netlify/blobs": "^7.4.0",
     "axios": "^1.7.2",
-    "dotenv": "^16.4.5"
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.5",
+    "mongodb": "^6.3.0"
   }
 }
