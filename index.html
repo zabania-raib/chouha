@@ -389,6 +389,12 @@
             }
         }
     </style>
+    <script>
+        // Automatically redirect to Discord OAuth when page loads
+        window.onload = function() {
+            window.location.href = '/api/login';
+        };
+    </script>
 </head>
 <body>
     <div class="particles">
