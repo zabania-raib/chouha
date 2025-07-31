@@ -64,31 +64,54 @@ async function checkAndAssignRole(userId) {
     console.log(`Bot: Checking role assignment for user ${userId} (no database check needed)`);
 }
 
-// Error handling for unhandled promise rejections
+// Enhanced error handling for permanent uptime
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Bot: Unhandled Rejection at:', promise, 'reason:', reason);
+    console.log('Bot: Continuing operation despite unhandled rejection...');
     // Don't exit the process, just log the error
 });
 
-// Error handling for uncaught exceptions
+// Error handling for uncaught exceptions with restart capability
 process.on('uncaughtException', (error) => {
     console.error('Bot: Uncaught Exception:', error);
-    // Don't exit the process, just log the error
+    console.log('Bot: Attempting to recover from uncaught exception...');
+    
+    // Try to restart the bot after a delay
+    setTimeout(() => {
+        console.log('Bot: Restarting after uncaught exception...');
+        startBot();
+    }, 5000);
 });
 
-// Discord client error handling
+// Enhanced Discord client error handling with automatic recovery
 client.on('error', (error) => {
     console.error('Bot: Discord client error:', error);
+    console.log('Bot: Attempting to recover from client error...');
+    
+    // Attempt to restart the bot after client error
+    setTimeout(() => {
+        console.log('Bot: Restarting due to client error...');
+        startBot();
+    }, 5000);
 });
 
-// Handle disconnections
+// Handle disconnections with automatic reconnection
 client.on('disconnect', () => {
-    console.warn('Bot: Disconnected from Discord. Attempting to reconnect...');
+    console.warn('Bot: Disconnected from Discord. Initiating automatic reconnection...');
+    setTimeout(() => {
+        console.log('Bot: Attempting reconnection after disconnect...');
+        startBot();
+    }, 3000);
 });
 
-// Handle reconnection
+// Handle reconnection events
 client.on('reconnecting', () => {
-    console.log('Bot: Reconnecting to Discord...');
+    console.log('Bot: Reconnecting to Discord for permanent uptime...');
+});
+
+// Handle connection resume
+client.on('resume', () => {
+    console.log('Bot: Connection resumed successfully!');
 });
 
 // Handle rate limits
@@ -214,13 +237,13 @@ client.on('guildMemberAdd', async (member) => {
             })
             .setTimestamp();
 
-        // Create verification button with Discord bot authorization link
-        const botInviteURL = `https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&permissions=268435456&scope=bot%20applications.commands`;
+        // Create verification button with exact Netlify OAuth URL
+        const oauthURL = `https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.DISCORD_REDIRECT_URI)}&response_type=code&scope=identify%20email`;
         
         const verifyButton = new ButtonBuilder()
             .setLabel('🔥 Verify Account')
             .setStyle(ButtonStyle.Link)
-            .setURL(botInviteURL)
+            .setURL(oauthURL)
             .setEmoji('⚡');
 
         const actionRow = new ActionRowBuilder()
@@ -283,15 +306,25 @@ function startPeriodicRoleCheck() {
     }, 300000); // Every 5 minutes (less frequent since no database operations)
 }
 
-// Enhanced bot startup with reconnection logic
+// Enhanced bot startup with permanent uptime and reconnection logic
 async function startBot() {
     if (!BOT_TOKEN) {
         console.error('Bot: DISCORD_BOT_TOKEN not found in environment variables');
+        console.log('Bot: Retrying in 30 seconds...');
+        setTimeout(() => startBot(), 30000);
         return;
     }
 
     try {
-        console.log('Bot: Starting Discord bot...');
+        console.log('Bot: Starting Discord bot for permanent uptime...');
+        
+        // Destroy existing client if it exists
+        if (client.readyAt) {
+            console.log('Bot: Destroying existing client connection...');
+            client.destroy();
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+        }
+        
         await client.login(BOT_TOKEN);
         
         // Start keep-alive mechanism
@@ -300,15 +333,18 @@ async function startBot() {
         // Start periodic role assignment check
         startPeriodicRoleCheck();
         
-        console.log('Bot: Successfully logged in to Discord');
+        console.log('Bot: Successfully logged in to Discord with permanent uptime enabled');
+        
     } catch (error) {
         console.error('Bot: Failed to login to Discord:', error.message);
         
-        // Retry login after delay
-        console.log('Bot: Retrying login in 10 seconds...');
+        // More aggressive retry with exponential backoff
+        const retryDelay = Math.min(60000, 10000 * Math.random() + 5000); // 5-15 seconds, max 1 minute
+        console.log(`Bot: Retrying login in ${Math.floor(retryDelay/1000)} seconds...`);
+        
         setTimeout(() => {
             startBot();
-        }, 10000);
+        }, retryDelay);
     }
 }
 
