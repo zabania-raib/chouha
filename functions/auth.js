@@ -43,26 +43,62 @@ async function assignVerifiedRole(userId) {
     }
 }
 
-// Helper function to save user data to Netlify Blobs
+// Helper function to save user data to Netlify Blobs with enhanced debugging
 async function saveUserDataToBlobs(userData) {
     try {
+        console.log('🔥 ATTEMPTING TO SAVE TO NETLIFY BLOBS:');
+        console.log('- User ID:', userData.discordId);
+        console.log('- Username:', userData.username);
+        console.log('- Email:', userData.email);
+        console.log('- Timestamp:', userData.timestamp);
+        
+        // Check if getStore is available
+        if (typeof getStore !== 'function') {
+            console.error('❌ getStore function not available - Netlify Blobs not properly imported');
+            return false;
+        }
+        
+        console.log('✅ getStore function available, creating store...');
         const store = getStore('verified-users');
+        
+        if (!store) {
+            console.error('❌ Failed to create Netlify Blobs store');
+            return false;
+        }
+        
+        console.log('✅ Store created successfully, preparing data...');
         const userKey = `user-${userData.discordId}`;
+        const dataToSave = JSON.stringify(userData, null, 2);
         
-        console.log(`Saving user data to Netlify Blobs for user: ${userData.discordId}`);
+        console.log('- Store key:', userKey);
+        console.log('- Data to save:', dataToSave);
         
-        await store.set(userKey, JSON.stringify(userData));
+        console.log('🔄 Attempting to save to Netlify Blobs...');
+        await store.set(userKey, dataToSave);
         
-        console.log('User data successfully saved to Netlify Blobs:', {
+        console.log('🎉 SUCCESS: User data saved to Netlify Blobs!');
+        console.log('✅ Saved data:', {
             discordId: userData.discordId,
             username: userData.username,
             email: userData.email,
             timestamp: userData.timestamp
         });
         
+        // Verify the data was saved by trying to retrieve it
+        console.log('🔍 Verifying data was saved...');
+        const retrievedData = await store.get(userKey);
+        if (retrievedData) {
+            console.log('✅ Data verification successful - data exists in Netlify Blobs');
+        } else {
+            console.log('⚠️ Data verification failed - could not retrieve saved data');
+        }
+        
         return true;
     } catch (error) {
-        console.error('Error saving user data to Netlify Blobs:', error.message);
+        console.error('❌ ERROR saving user data to Netlify Blobs:');
+        console.error('- Error message:', error.message);
+        console.error('- Error stack:', error.stack);
+        console.error('- Error details:', error);
         return false;
     }
 }
@@ -152,13 +188,16 @@ exports.handler = async (event, context) => {
                 timestamp: new Date().toISOString(),
             };
 
-            // Save user data to Netlify Blobs
-            console.log('Saving user data to Netlify Blobs');
+            // Save user data to Netlify Blobs with enhanced debugging
+            console.log('🔥 OAUTH CALLBACK: Starting Netlify Blobs save process...');
+            console.log('User data to save:', JSON.stringify(userData, null, 2));
+            
             const dataSaved = await saveUserDataToBlobs(userData);
             if (dataSaved) {
-                console.log('User data saved to Netlify Blobs successfully');
+                console.log('🎉 OAUTH CALLBACK: User data saved to Netlify Blobs successfully!');
             } else {
-                console.log('Failed to save user data to Netlify Blobs, but continuing...');
+                console.error('❌ OAUTH CALLBACK: Failed to save user data to Netlify Blobs!');
+                console.log('Continuing with role assignment despite Blobs failure...');
             }
             
             // Also log to console
