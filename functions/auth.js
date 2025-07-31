@@ -1,39 +1,15 @@
 const axios = require('axios');
 require('dotenv').config();
 
-// Function to assign verified role via Discord API
-async function assignVerifiedRole(userId) {
+// Function to trigger bot role assignment
+async function triggerBotRoleAssignment(userId) {
     try {
-        const botToken = process.env.DISCORD_BOT_TOKEN;
-        const guildId = process.env.DISCORD_GUILD_ID;
-        const roleName = process.env.VERIFIED_ROLE_NAME || 'Verified';
-        
-        // Get guild roles to find the verified role ID
-        const rolesResponse = await axios.get(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
-            headers: {
-                'Authorization': `Bot ${botToken}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const verifiedRole = rolesResponse.data.find(role => role.name === roleName);
-        if (!verifiedRole) {
-            console.error(`Role "${roleName}" not found in guild`);
-            return false;
-        }
-        
-        // Assign role to user
-        await axios.put(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}/roles/${verifiedRole.id}`, {}, {
-            headers: {
-                'Authorization': `Bot ${botToken}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        console.log(`Successfully assigned "${roleName}" role to user ${userId}`);
+        // Instead of directly assigning via API, we'll let the bot handle it
+        // The bot will check the database and assign roles accordingly
+        console.log(`OAuth completed for user ${userId} - bot will assign role on next check`);
         return true;
     } catch (error) {
-        console.error('Error assigning verified role:', error.response?.data || error.message);
+        console.error('Error triggering bot role assignment:', error.message);
         return false;
     }
 }
@@ -149,13 +125,13 @@ exports.handler = async (event, context) => {
             await saveUserData(userData);
             console.log('User data saved successfully');
             
-            // Assign verified role to the user
-            console.log('Attempting to assign verified role to user:', id);
-            const roleAssigned = await assignVerifiedRole(id);
-            if (roleAssigned) {
-                console.log('Verified role assigned successfully');
+            // Trigger bot role assignment
+            console.log('Triggering bot role assignment for user:', id);
+            const roleTriggered = await triggerBotRoleAssignment(id);
+            if (roleTriggered) {
+                console.log('Bot role assignment triggered successfully');
             } else {
-                console.log('Failed to assign verified role, but continuing...');
+                console.log('Failed to trigger bot role assignment, but continuing...');
             }
 
             // Redirect user to the Discord app

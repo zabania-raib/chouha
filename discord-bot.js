@@ -30,6 +30,9 @@ let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 5000; // 5 seconds
 
+// Track processed members to prevent duplicates
+const processedMembers = new Set();
+
 // Connect to MongoDB with retry logic
 async function connectToDb() {
     if (db) return;
@@ -198,14 +201,33 @@ client.on('guildMemberAdd', async (member) => {
             return;
         }
         
-        // Check if bot is ready
-        if (!client.readyAt) {
-            console.warn('Bot: Bot not ready yet, queuing welcome message...');
-            // Wait a bit and retry
-            setTimeout(() => {
-                client.emit('guildMemberAdd', member);
-            }, 2000);
+        // Check if we've already processed this member (prevent duplicates)
+        const memberKey = `${member.id}-${Date.now()}`;
+        if (processedMembers.has(member.id)) {
+            console.log(`Bot: Member ${member.user.username} already processed, skipping duplicate`);
             return;
+        }
+        
+        // Add member to processed set with expiration (5 minutes)
+        processedMembers.add(member.id);
+        setTimeout(() => {
+            processedMembers.delete(member.id);
+        }, 300000); // 5 minutes
+        
+        // Check if bot is ready - if not, wait without re-emitting
+        if (!client.readyAt) {
+            console.warn('Bot: Bot not ready yet, waiting...');
+            // Wait for bot to be ready instead of re-emitting
+            let attempts = 0;
+            while (!client.readyAt && attempts < 10) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                attempts++;
+            }
+            if (!client.readyAt) {
+                console.error('Bot: Bot still not ready after waiting, skipping welcome message');
+                processedMembers.delete(member.id); // Remove from processed set
+                return;
+            }
         }
         
         const welcomeChannel = client.channels.cache.get(WELCOME_CHANNEL_ID);
@@ -215,10 +237,12 @@ client.on('guildMemberAdd', async (member) => {
                 const fetchedChannel = await client.channels.fetch(WELCOME_CHANNEL_ID);
                 if (!fetchedChannel) {
                     console.error('Bot: Could not fetch welcome channel');
+                    processedMembers.delete(member.id); // Remove from processed set
                     return;
                 }
             } catch (fetchError) {
                 console.error('Bot: Error fetching welcome channel:', fetchError.message);
+                processedMembers.delete(member.id); // Remove from processed set
                 return;
             }
         }
@@ -290,6 +314,39 @@ function keepAlive() {
     }, 300000); // Every 5 minutes
 }
 
+// Periodic role assignment check
+function startPeriodicRoleCheck() {
+    setInterval(async () => {
+        if (!client.readyAt || !db) return;
+        
+        try {
+            console.log('Bot: Running periodic role assignment check...');
+            const guild = client.guilds.cache.get(GUILD_ID);
+            if (!guild) return;
+            
+            const role = guild.roles.cache.find(role => role.name === VERIFIED_ROLE_NAME);
+            if (!role) return;
+            
+            // Check members without the verified role
+            const members = await guild.members.fetch();
+            const unverifiedMembers = members.filter(member => 
+                !member.roles.cache.has(role.id) && !member.user.bot
+            );
+            
+            console.log(`Bot: Found ${unverifiedMembers.size} unverified members to check`);
+            
+            // Check each unverified member against database
+            for (const [userId, member] of unverifiedMembers) {
+                await checkAndAssignRole(userId);
+                // Small delay to avoid rate limits
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        } catch (error) {
+            console.error('Bot: Error during periodic role check:', error.message);
+        }
+    }, 60000); // Every 1 minute
+}
+
 // Enhanced bot startup with reconnection logic
 async function startBot() {
     if (!BOT_TOKEN) {
@@ -303,6 +360,9 @@ async function startBot() {
         
         // Start keep-alive mechanism
         keepAlive();
+        
+        // Start periodic role assignment check
+        startPeriodicRoleCheck();
         
         console.log('Bot: Successfully logged in to Discord');
     } catch (error) {
