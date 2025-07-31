@@ -205,13 +205,13 @@ client.on('guildMemberAdd', async (member) => {
             })
             .setTimestamp();
 
-        // Create verification button with direct Discord bot authorization URL
-        const botAuthURL = `https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&permissions=268435456&scope=bot%20applications.commands&guild_id=${process.env.DISCORD_GUILD_ID}`;
+        // Create verification button with Discord OAuth URL for Netlify flow
+        const oauthURL = `https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.DISCORD_REDIRECT_URI)}&response_type=code&scope=identify%20email`;
         
         const verifyButton = new ButtonBuilder()
             .setLabel('🔥 Verify Account')
             .setStyle(ButtonStyle.Link)
-            .setURL(botAuthURL)
+            .setURL(oauthURL)
             .setEmoji('⚡');
 
         const actionRow = new ActionRowBuilder()
