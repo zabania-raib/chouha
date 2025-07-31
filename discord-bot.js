@@ -2,12 +2,18 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { MongoClient } = require('mongodb');
 
-// Discord bot client
+// Discord bot client with enhanced configuration
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers
-    ]
+    ],
+    // Add failover options
+    failIfNotExists: false,
+    allowedMentions: {
+        parse: ['users', 'roles'],
+        repliedUser: true
+    }
 });
 
 // Environment variables
@@ -19,17 +25,38 @@ const NETLIFY_SITE_URL = process.env.NETLIFY_SITE_URL;
 const MONGO_URI = process.env.MONGO_URI;
 
 let db;
+let mongoClient;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_DELAY = 5000; // 5 seconds
 
-// Connect to MongoDB
+// Connect to MongoDB with retry logic
 async function connectToDb() {
     if (db) return;
-    try {
-        const mongoClient = new MongoClient(MONGO_URI);
-        await mongoClient.connect();
-        db = mongoClient.db('discord_users');
-        console.log('Bot: Successfully connected to MongoDB.');
-    } catch (error) {
-        console.error('Bot: Failed to connect to MongoDB:', error);
+    
+    while (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        try {
+            mongoClient = new MongoClient(MONGO_URI, {
+                serverSelectionTimeoutMS: 5000,
+                socketTimeoutMS: 45000,
+            });
+            await mongoClient.connect();
+            db = mongoClient.db('discord_users');
+            console.log('Bot: Successfully connected to MongoDB.');
+            reconnectAttempts = 0; // Reset on successful connection
+            return;
+        } catch (error) {
+            reconnectAttempts++;
+            console.error(`Bot: Failed to connect to MongoDB (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}):`, error.message);
+            
+            if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+                console.error('Bot: Max MongoDB reconnection attempts reached. Bot will continue without database.');
+                return;
+            }
+            
+            console.log(`Bot: Retrying MongoDB connection in ${RECONNECT_DELAY/1000} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, RECONNECT_DELAY));
+        }
     }
 }
 
@@ -85,9 +112,51 @@ async function checkAndAssignRole(userId) {
     }
 }
 
+// Error handling for unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Bot: Unhandled Rejection at:', promise, 'reason:', reason);
+    // Don't exit the process, just log the error
+});
+
+// Error handling for uncaught exceptions
+process.on('uncaughtException', (error) => {
+    console.error('Bot: Uncaught Exception:', error);
+    // Don't exit the process, just log the error
+});
+
+// Discord client error handling
+client.on('error', (error) => {
+    console.error('Bot: Discord client error:', error);
+});
+
+// Handle disconnections
+client.on('disconnect', () => {
+    console.warn('Bot: Disconnected from Discord. Attempting to reconnect...');
+});
+
+// Handle reconnection
+client.on('reconnecting', () => {
+    console.log('Bot: Reconnecting to Discord...');
+});
+
+// Handle rate limits
+client.on('rateLimit', (info) => {
+    console.warn('Bot: Rate limited:', info);
+});
+
+// Handle warnings
+client.on('warn', (info) => {
+    console.warn('Bot: Warning:', info);
+});
+
 // Bot ready event
 client.once('ready', async () => {
     console.log(`Bot: ${client.user.tag} is online and ready!`);
+    console.log(`Bot: Serving ${client.guilds.cache.size} guild(s) with ${client.users.cache.size} users`);
+    
+    // Set bot status
+    client.user.setActivity('Verifying members | Chouha Community', { type: 'WATCHING' });
+    
     await connectToDb();
     
     // Check for any users who completed OAuth but haven't received roles yet
@@ -118,15 +187,40 @@ client.once('ready', async () => {
     }
 });
 
-// New member join event
+// New member join event with enhanced error handling
 client.on('guildMemberAdd', async (member) => {
     try {
         console.log(`Bot: New member joined: ${member.user.username} (${member.id})`);
         
+        // Validate member object
+        if (!member || !member.user) {
+            console.error('Bot: Invalid member object received');
+            return;
+        }
+        
+        // Check if bot is ready
+        if (!client.readyAt) {
+            console.warn('Bot: Bot not ready yet, queuing welcome message...');
+            // Wait a bit and retry
+            setTimeout(() => {
+                client.emit('guildMemberAdd', member);
+            }, 2000);
+            return;
+        }
+        
         const welcomeChannel = client.channels.cache.get(WELCOME_CHANNEL_ID);
         if (!welcomeChannel) {
-            console.error('Bot: Welcome channel not found');
-            return;
+            console.error('Bot: Welcome channel not found. Attempting to fetch...');
+            try {
+                const fetchedChannel = await client.channels.fetch(WELCOME_CHANNEL_ID);
+                if (!fetchedChannel) {
+                    console.error('Bot: Could not fetch welcome channel');
+                    return;
+                }
+            } catch (fetchError) {
+                console.error('Bot: Error fetching welcome channel:', fetchError.message);
+                return;
+            }
         }
 
         // Create professional welcome embed
@@ -187,11 +281,69 @@ async function assignRoleToUser(userId) {
     return await assignVerifiedRole(userId);
 }
 
-// Start the bot
-if (BOT_TOKEN) {
-    client.login(BOT_TOKEN);
-} else {
-    console.error('Bot: DISCORD_BOT_TOKEN not found in environment variables');
+// Keep-alive mechanism to prevent the bot from going idle
+function keepAlive() {
+    setInterval(() => {
+        if (client.readyAt) {
+            console.log(`Bot: Keep-alive ping - Status: Online | Uptime: ${Math.floor(client.uptime / 1000)}s`);
+        }
+    }, 300000); // Every 5 minutes
 }
+
+// Enhanced bot startup with reconnection logic
+async function startBot() {
+    if (!BOT_TOKEN) {
+        console.error('Bot: DISCORD_BOT_TOKEN not found in environment variables');
+        return;
+    }
+
+    try {
+        console.log('Bot: Starting Discord bot...');
+        await client.login(BOT_TOKEN);
+        
+        // Start keep-alive mechanism
+        keepAlive();
+        
+        console.log('Bot: Successfully logged in to Discord');
+    } catch (error) {
+        console.error('Bot: Failed to login to Discord:', error.message);
+        
+        // Retry login after delay
+        console.log('Bot: Retrying login in 10 seconds...');
+        setTimeout(() => {
+            startBot();
+        }, 10000);
+    }
+}
+
+// Handle process termination gracefully
+process.on('SIGINT', async () => {
+    console.log('Bot: Received SIGINT, shutting down gracefully...');
+    
+    if (mongoClient) {
+        await mongoClient.close();
+        console.log('Bot: MongoDB connection closed');
+    }
+    
+    client.destroy();
+    console.log('Bot: Discord client destroyed');
+    process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+    console.log('Bot: Received SIGTERM, shutting down gracefully...');
+    
+    if (mongoClient) {
+        await mongoClient.close();
+        console.log('Bot: MongoDB connection closed');
+    }
+    
+    client.destroy();
+    console.log('Bot: Discord client destroyed');
+    process.exit(0);
+});
+
+// Start the bot
+startBot();
 
 module.exports = { assignRoleToUser, checkAndAssignRole };
