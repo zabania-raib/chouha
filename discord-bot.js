@@ -15,12 +15,28 @@ const client = new Client({
     }
 });
 
-// Environment variables
+// Environment variables with validation
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const GUILD_ID = process.env.DISCORD_GUILD_ID;
 const WELCOME_CHANNEL_ID = process.env.DISCORD_WELCOME_CHANNEL_ID;
-const VERIFIED_ROLE_NAME = process.env.VERIFIED_ROLE_NAME;
+const VERIFIED_ROLE_NAME = process.env.VERIFIED_ROLE_NAME || 'Verified';
 const NETLIFY_SITE_URL = process.env.NETLIFY_SITE_URL;
+
+// Validate required environment variables
+const requiredEnvVars = {
+    DISCORD_BOT_TOKEN: BOT_TOKEN,
+    DISCORD_GUILD_ID: GUILD_ID,
+    DISCORD_WELCOME_CHANNEL_ID: WELCOME_CHANNEL_ID,
+    NETLIFY_SITE_URL: NETLIFY_SITE_URL
+};
+
+for (const [key, value] of Object.entries(requiredEnvVars)) {
+    if (!value) {
+        console.error(`❌ Missing required environment variable: ${key}`);
+        console.error('Please check your .env file and ensure all required variables are set.');
+        process.exit(1);
+    }
+}
 
 // Track processed members to prevent duplicates
 const processedMembers = new Map(); // Use Map to store timestamp
@@ -130,7 +146,7 @@ client.once('ready', async () => {
     console.log(`Bot: Serving ${client.guilds.cache.size} guild(s) with ${client.users.cache.size} users`);
     
     // Set bot status
-    client.user.setActivity('Verifying members | Chouha Community', { type: 'WATCHING' });
+    client.user.setActivity('Verifying members | Chouha Community', { type: 3 }); // 3 = WATCHING
     
     console.log('Bot: Ready and waiting for new members to join!');
 });

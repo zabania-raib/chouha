@@ -9,6 +9,12 @@ async function assignVerifiedRole(userId) {
         const guildId = process.env.DISCORD_GUILD_ID;
         const roleName = process.env.VERIFIED_ROLE_NAME || 'Verified';
         
+        // Validate required environment variables
+        if (!botToken || !guildId) {
+            console.error('Missing required environment variables for role assignment');
+            return false;
+        }
+        
         console.log(`Attempting to assign ${roleName} role to user ${userId}`);
         
         // Get guild roles to find the verified role ID
@@ -16,7 +22,8 @@ async function assignVerifiedRole(userId) {
             headers: {
                 'Authorization': `Bot ${botToken}`,
                 'Content-Type': 'application/json'
-            }
+            },
+            timeout: 10000 // 10 second timeout
         });
         
         const verifiedRole = rolesResponse.data.find(role => role.name === roleName);
@@ -32,13 +39,19 @@ async function assignVerifiedRole(userId) {
             headers: {
                 'Authorization': `Bot ${botToken}`,
                 'Content-Type': 'application/json'
-            }
+            },
+            timeout: 10000 // 10 second timeout
         });
         
-        console.log(`Successfully assigned "${roleName}" role to user ${userId}`);
+        console.log(`✅ Successfully assigned "${roleName}" role to user ${userId}`);
         return true;
     } catch (error) {
-        console.error('Error assigning verified role:', error.response?.data || error.message);
+        console.error('❌ Error assigning verified role:', error.response?.data || error.message);
+        if (error.response?.status === 403) {
+            console.error('Bot lacks permissions to assign roles. Check bot permissions in Discord.');
+        } else if (error.response?.status === 404) {
+            console.error('User or guild not found. Check user ID and guild ID.');
+        }
         return false;
     }
 }
@@ -121,9 +134,16 @@ async function logUserData(userData) {
 
 // Main Netlify Function handler
 exports.handler = async (event, context) => {
-    // Route for initiating Discord OAuth2 login
-    if (event.path.endsWith('/api/login')) {
-        const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.DISCORD_REDIRECT_URI)}&response_type=code&scope=identify%20email`;
+    console.log('Auth function called with:', {
+        path: event.path,
+        httpMethod: event.httpMethod,
+        queryStringParameters: event.queryStringParameters
+    });
+
+    // Handle OAuth login initiation
+    if (event.path === '/api/login') {
+        const discordAuthUrl = `https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.DISCORD_REDIRECT_URI)}&response_type=code&scope=identify%20email`;
+        
         return {
             statusCode: 302,
             headers: {

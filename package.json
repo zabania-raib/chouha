@@ -1,12 +1,17 @@
 {
-  "name": "discord-oauth2-example",
+  "name": "chouha-community-bot",
   "version": "1.0.0",
-  "description": "A simple Node.js app with Discord OAuth2 authentication.",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js",
-    "bot": "node discord-bot.js"
+  "description": "Chouha Community Discord Bot with OAuth2 verification system",
+  "main": "start.js",
+  "engines": {
+    "node": ">=18.0.0"
   },
+  "scripts": {
+    "start": "node start.js",
+    "bot": "node discord-bot.js",
+    "dev": "node discord-bot.js"
+  },
+  "keywords": ["discord", "bot", "oauth2", "verification", "community"],
   "dependencies": {
     "@netlify/blobs": "^7.4.0",
     "axios": "^1.7.2",
