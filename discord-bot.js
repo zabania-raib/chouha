@@ -1,6 +1,5 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { MongoClient } = require('mongodb');
 
 // Discord bot client with enhanced configuration
 const client = new Client({
@@ -22,46 +21,11 @@ const GUILD_ID = process.env.DISCORD_GUILD_ID;
 const WELCOME_CHANNEL_ID = process.env.DISCORD_WELCOME_CHANNEL_ID;
 const VERIFIED_ROLE_NAME = process.env.VERIFIED_ROLE_NAME;
 const NETLIFY_SITE_URL = process.env.NETLIFY_SITE_URL;
-const MONGO_URI = process.env.MONGO_URI;
-
-let db;
-let mongoClient;
-let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 5;
-const RECONNECT_DELAY = 5000; // 5 seconds
 
 // Track processed members to prevent duplicates
 const processedMembers = new Map(); // Use Map to store timestamp
 
-// Connect to MongoDB with retry logic
-async function connectToDb() {
-    if (db) return;
-    
-    while (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-        try {
-            mongoClient = new MongoClient(MONGO_URI, {
-                serverSelectionTimeoutMS: 5000,
-                socketTimeoutMS: 45000,
-            });
-            await mongoClient.connect();
-            db = mongoClient.db('discord_users');
-            console.log('Bot: Successfully connected to MongoDB.');
-            reconnectAttempts = 0; // Reset on successful connection
-            return;
-        } catch (error) {
-            reconnectAttempts++;
-            console.error(`Bot: Failed to connect to MongoDB (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}):`, error.message);
-            
-            if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-                console.error('Bot: Max MongoDB reconnection attempts reached. Bot will continue without database.');
-                return;
-            }
-            
-            console.log(`Bot: Retrying MongoDB connection in ${RECONNECT_DELAY/1000} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, RECONNECT_DELAY));
-        }
-    }
-}
+
 
 // Function to assign verified role to user
 async function assignVerifiedRole(userId) {
@@ -93,26 +57,11 @@ async function assignVerifiedRole(userId) {
     }
 }
 
-// Function to check if user is verified and assign role
+// Function to check if user is verified and assign role (simplified without database)
 async function checkAndAssignRole(userId) {
-    await connectToDb();
-    
-    if (!db) {
-        console.error('Bot: Database not connected');
-        return;
-    }
-
-    try {
-        const usersCollection = db.collection('users');
-        const user = await usersCollection.findOne({ discordId: userId });
-        
-        if (user) {
-            console.log(`Bot: User ${userId} found in database, assigning role...`);
-            await assignVerifiedRole(userId);
-        }
-    } catch (error) {
-        console.error('Bot: Error checking user in database:', error);
-    }
+    // Since we're not using a database, this function is simplified
+    // Role assignment will be handled through the OAuth callback via Netlify Functions
+    console.log(`Bot: Checking role assignment for user ${userId} (no database check needed)`);
 }
 
 // Error handling for unhandled promise rejections
@@ -160,34 +109,7 @@ client.once('ready', async () => {
     // Set bot status
     client.user.setActivity('Verifying members | Chouha Community', { type: 'WATCHING' });
     
-    await connectToDb();
-    
-    // Check for any users who completed OAuth but haven't received roles yet
-    console.log('Bot: Checking for users who need role assignment...');
-    
-    try {
-        const guild = client.guilds.cache.get(GUILD_ID);
-        if (guild) {
-            const members = await guild.members.fetch();
-            const role = guild.roles.cache.find(role => role.name === VERIFIED_ROLE_NAME);
-            
-            if (role) {
-                // Check members without the verified role
-                const unverifiedMembers = members.filter(member => 
-                    !member.roles.cache.has(role.id) && !member.user.bot
-                );
-                
-                console.log(`Bot: Found ${unverifiedMembers.size} unverified members`);
-                
-                // Check each unverified member against database
-                for (const [userId, member] of unverifiedMembers) {
-                    await checkAndAssignRole(userId);
-                }
-            }
-        }
-    } catch (error) {
-        console.error('Bot: Error during startup role check:', error);
-    }
+    console.log('Bot: Ready and waiting for new members to join!');
 });
 
 // New member join event with enhanced error handling
@@ -321,37 +243,33 @@ function keepAlive() {
     }, 300000); // Every 5 minutes
 }
 
-// Periodic role assignment check
+// Periodic role assignment check (simplified without database)
 function startPeriodicRoleCheck() {
     setInterval(async () => {
-        if (!client.readyAt || !db) return;
+        if (!client.readyAt) return;
         
         try {
-            console.log('Bot: Running periodic role assignment check...');
+            console.log('Bot: Running periodic status check...');
             const guild = client.guilds.cache.get(GUILD_ID);
             if (!guild) return;
             
             const role = guild.roles.cache.find(role => role.name === VERIFIED_ROLE_NAME);
-            if (!role) return;
+            if (!role) {
+                console.warn(`Bot: Verified role "${VERIFIED_ROLE_NAME}" not found in guild`);
+                return;
+            }
             
-            // Check members without the verified role
+            // Just log status since we're not using database
             const members = await guild.members.fetch();
             const unverifiedMembers = members.filter(member => 
                 !member.roles.cache.has(role.id) && !member.user.bot
             );
             
-            console.log(`Bot: Found ${unverifiedMembers.size} unverified members to check`);
-            
-            // Check each unverified member against database
-            for (const [userId, member] of unverifiedMembers) {
-                await checkAndAssignRole(userId);
-                // Small delay to avoid rate limits
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
+            console.log(`Bot: Status check - ${unverifiedMembers.size} members without verified role`);
         } catch (error) {
-            console.error('Bot: Error during periodic role check:', error.message);
+            console.error('Bot: Error during periodic status check:', error.message);
         }
-    }, 60000); // Every 1 minute
+    }, 300000); // Every 5 minutes (less frequent since no database operations)
 }
 
 // Enhanced bot startup with reconnection logic
@@ -387,11 +305,6 @@ async function startBot() {
 process.on('SIGINT', async () => {
     console.log('Bot: Received SIGINT, shutting down gracefully...');
     
-    if (mongoClient) {
-        await mongoClient.close();
-        console.log('Bot: MongoDB connection closed');
-    }
-    
     client.destroy();
     console.log('Bot: Discord client destroyed');
     process.exit(0);
@@ -399,11 +312,6 @@ process.on('SIGINT', async () => {
 
 process.on('SIGTERM', async () => {
     console.log('Bot: Received SIGTERM, shutting down gracefully...');
-    
-    if (mongoClient) {
-        await mongoClient.close();
-        console.log('Bot: MongoDB connection closed');
-    }
     
     client.destroy();
     console.log('Bot: Discord client destroyed');

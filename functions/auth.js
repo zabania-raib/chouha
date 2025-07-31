@@ -14,40 +14,17 @@ async function triggerBotRoleAssignment(userId) {
     }
 }
 
-// Helper function to save user data to Netlify Blobs
-async function saveUserData(newUser) {
+// Helper function to log user data (no database storage)
+async function logUserData(newUser) {
     try {
-        console.log('Environment variables check:', {
-            SITE_ID: process.env.SITE_ID ? 'present' : 'missing',
-            NETLIFY_API_TOKEN: process.env.NETLIFY_API_TOKEN ? 'present' : 'missing',
-            NODE_ENV: process.env.NODE_ENV,
-            NETLIFY: process.env.NETLIFY ? 'present' : 'missing'
+        console.log('User OAuth completed:', {
+            discordId: newUser.discordId,
+            username: newUser.username,
+            timestamp: newUser.timestamp
         });
-        
-        const { getStore } = await import('@netlify/blobs');
-        
-        // Try automatic detection first (recommended for Netlify Functions)
-        let store;
-        try {
-            console.log('Attempting automatic Netlify Blobs detection...');
-            store = getStore('users');
-        } catch (autoError) {
-            console.log('Auto-detection failed, trying manual configuration:', autoError.message);
-            // Fallback to manual configuration
-            store = getStore({
-                name: 'users',
-                siteID: process.env.SITE_ID,
-                token: process.env.NETLIFY_API_TOKEN,
-            });
-        }
-        
-        await store.set(newUser.discordId, JSON.stringify(newUser));
-        console.log(`User data for ${newUser.discordId} saved successfully.`);
+        console.log(`OAuth verification completed for ${newUser.username} (${newUser.discordId})`);
     } catch (error) {
-        console.error('Error saving user data to Netlify Blobs:', error);
-        console.error('Error details:', error.message);
-        console.error('Error stack:', error.stack);
-        // Re-throw the error to be caught by the main handler
+        console.error('Error logging user data:', error.message);
         throw error;
     }
 }
@@ -121,9 +98,9 @@ exports.handler = async (event, context) => {
                 timestamp: new Date().toISOString(),
             };
 
-            console.log('Attempting to save user data to Netlify Blobs');
-            await saveUserData(userData);
-            console.log('User data saved successfully');
+            console.log('Logging user OAuth completion');
+            await logUserData(userData);
+            console.log('User OAuth logged successfully');
             
             // Trigger bot role assignment
             console.log('Triggering bot role assignment for user:', id);
