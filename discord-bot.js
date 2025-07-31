@@ -115,11 +115,20 @@ client.once('ready', async () => {
 // New member join event with enhanced error handling
 client.on('guildMemberAdd', async (member) => {
     try {
-        console.log(`Bot: New member joined: ${member.user.username} (${member.id})`);
+        console.log(`🔥 Bot: NEW MEMBER JOINED: ${member.user.username} (${member.id})`);
+        console.log(`Bot: Member guild: ${member.guild.name} (${member.guild.id})`);
+        console.log(`Bot: Expected guild: ${process.env.DISCORD_GUILD_ID}`);
+        console.log(`Bot: Welcome channel ID: ${process.env.DISCORD_WELCOME_CHANNEL_ID}`);
         
         // Validate member object
         if (!member || !member.user) {
-            console.error('Bot: Invalid member object received');
+            console.error('❌ Bot: Invalid member object received');
+            return;
+        }
+        
+        // Check if this is the correct guild
+        if (member.guild.id !== process.env.DISCORD_GUILD_ID) {
+            console.log(`Bot: Member joined different guild (${member.guild.name}), ignoring`);
             return;
         }
         
