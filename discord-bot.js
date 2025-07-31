@@ -31,7 +31,7 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 5000; // 5 seconds
 
 // Track processed members to prevent duplicates
-const processedMembers = new Set();
+const processedMembers = new Map(); // Use Map to store timestamp
 
 // Connect to MongoDB with retry logic
 async function connectToDb() {
@@ -201,18 +201,25 @@ client.on('guildMemberAdd', async (member) => {
             return;
         }
         
-        // Check if we've already processed this member (prevent duplicates)
-        const memberKey = `${member.id}-${Date.now()}`;
-        if (processedMembers.has(member.id)) {
-            console.log(`Bot: Member ${member.user.username} already processed, skipping duplicate`);
+        // Check if we've already processed this member recently (prevent duplicates)
+        const now = Date.now();
+        const lastProcessed = processedMembers.get(member.id);
+        
+        if (lastProcessed && (now - lastProcessed) < 30000) { // 30 seconds cooldown
+            console.log(`Bot: Member ${member.user.username} (${member.id}) already processed ${Math.floor((now - lastProcessed) / 1000)}s ago, skipping duplicate`);
             return;
         }
         
-        // Add member to processed set with expiration (5 minutes)
-        processedMembers.add(member.id);
-        setTimeout(() => {
-            processedMembers.delete(member.id);
-        }, 300000); // 5 minutes
+        // Add member to processed map with timestamp
+        processedMembers.set(member.id, now);
+        console.log(`Bot: Processing welcome message for ${member.user.username} (${member.id})`);
+        
+        // Clean up old entries (older than 5 minutes)
+        for (const [userId, timestamp] of processedMembers.entries()) {
+            if (now - timestamp > 300000) { // 5 minutes
+                processedMembers.delete(userId);
+            }
+        }
         
         // Check if bot is ready - if not, wait without re-emitting
         if (!client.readyAt) {
@@ -225,7 +232,7 @@ client.on('guildMemberAdd', async (member) => {
             }
             if (!client.readyAt) {
                 console.error('Bot: Bot still not ready after waiting, skipping welcome message');
-                processedMembers.delete(member.id); // Remove from processed set
+                processedMembers.delete(member.id); // Remove from processed map
                 return;
             }
         }
@@ -237,12 +244,12 @@ client.on('guildMemberAdd', async (member) => {
                 const fetchedChannel = await client.channels.fetch(WELCOME_CHANNEL_ID);
                 if (!fetchedChannel) {
                     console.error('Bot: Could not fetch welcome channel');
-                    processedMembers.delete(member.id); // Remove from processed set
+                    processedMembers.delete(member.id); // Remove from processed map
                     return;
                 }
             } catch (fetchError) {
                 console.error('Bot: Error fetching welcome channel:', fetchError.message);
-                processedMembers.delete(member.id); // Remove from processed set
+                processedMembers.delete(member.id); // Remove from processed map
                 return;
             }
         }
