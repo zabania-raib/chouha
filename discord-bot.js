@@ -205,11 +205,13 @@ client.on('guildMemberAdd', async (member) => {
             })
             .setTimestamp();
 
-        // Create verification button as Discord interaction (no external links)
+        // Create verification button with direct Discord bot authorization URL
+        const botAuthURL = `https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&permissions=268435456&scope=bot%20applications.commands&guild_id=${process.env.DISCORD_GUILD_ID}`;
+        
         const verifyButton = new ButtonBuilder()
-            .setCustomId('verify_account')
             .setLabel('🔥 Verify Account')
-            .setStyle(ButtonStyle.Success)
+            .setStyle(ButtonStyle.Link)
+            .setURL(botAuthURL)
             .setEmoji('⚡');
 
         const actionRow = new ActionRowBuilder()
@@ -226,55 +228,6 @@ client.on('guildMemberAdd', async (member) => {
 
     } catch (error) {
         console.error('Bot: Error sending welcome message:', error);
-    }
-});
-
-// Handle button interactions
-client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isButton()) return;
-    
-    if (interaction.customId === 'verify_account') {
-        try {
-            console.log(`Verification button clicked by ${interaction.user.username} (${interaction.user.id})`);
-            
-            // Check if user already has verified role
-            const guild = interaction.guild;
-            const member = guild.members.cache.get(interaction.user.id);
-            const verifiedRole = guild.roles.cache.find(role => role.name === VERIFIED_ROLE_NAME);
-            
-            if (!verifiedRole) {
-                await interaction.reply({
-                    content: '❌ Verified role not found in this server. Please contact an administrator.',
-                    ephemeral: true
-                });
-                return;
-            }
-            
-            if (member.roles.cache.has(verifiedRole.id)) {
-                await interaction.reply({
-                    content: '✅ You are already verified!',
-                    ephemeral: true
-                });
-                return;
-            }
-            
-            // Assign verified role
-            await member.roles.add(verifiedRole);
-            
-            await interaction.reply({
-                content: '🔥 **Verification Complete!** 🔥\n\nWelcome to the Chouha Community! You now have access to all channels. 👹',
-                ephemeral: true
-            });
-            
-            console.log(`Successfully verified ${interaction.user.username} (${interaction.user.id})`);
-            
-        } catch (error) {
-            console.error('Error handling verification button:', error);
-            await interaction.reply({
-                content: '❌ An error occurred during verification. Please try again or contact an administrator.',
-                ephemeral: true
-            });
-        }
     }
 });
 
