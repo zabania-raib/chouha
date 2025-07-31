@@ -205,11 +205,13 @@ client.on('guildMemberAdd', async (member) => {
             })
             .setTimestamp();
 
-        // Create verification button
+        // Create verification button with Discord OAuth URL
+        const discordOAuthURL = `https://discord.com/api/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.DISCORD_REDIRECT_URI)}&response_type=code&scope=identify%20email`;
+        
         const verifyButton = new ButtonBuilder()
             .setLabel('🔥 Verify Account')
             .setStyle(ButtonStyle.Link)
-            .setURL(NETLIFY_SITE_URL)
+            .setURL(discordOAuthURL)
             .setEmoji('⚡');
 
         const actionRow = new ActionRowBuilder()

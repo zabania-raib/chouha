@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { getStore } = require('@netlify/blobs');
 require('dotenv').config();
 
 // Function to assign verified role via Discord API
@@ -42,18 +43,43 @@ async function assignVerifiedRole(userId) {
     }
 }
 
-// Helper function to log user data (no database storage)
-async function logUserData(newUser) {
+// Helper function to save user data to Netlify Blobs
+async function saveUserDataToBlobs(userData) {
     try {
-        console.log('User OAuth completed:', {
-            discordId: newUser.discordId,
-            username: newUser.username,
-            timestamp: newUser.timestamp
+        const store = getStore('verified-users');
+        const userKey = `user-${userData.discordId}`;
+        
+        console.log(`Saving user data to Netlify Blobs for user: ${userData.discordId}`);
+        
+        await store.set(userKey, JSON.stringify(userData));
+        
+        console.log('User data successfully saved to Netlify Blobs:', {
+            discordId: userData.discordId,
+            username: userData.username,
+            email: userData.email,
+            timestamp: userData.timestamp
         });
-        console.log(`OAuth verification completed for ${newUser.username} (${newUser.discordId})`);
+        
+        return true;
+    } catch (error) {
+        console.error('Error saving user data to Netlify Blobs:', error.message);
+        return false;
+    }
+}
+
+// Helper function to log user data (for console logging)
+async function logUserData(userData) {
+    try {
+        console.log('User verification completed:', {
+            discordId: userData.discordId,
+            username: userData.username,
+            email: userData.email,
+            timestamp: userData.timestamp
+        });
+        return true;
     } catch (error) {
         console.error('Error logging user data:', error.message);
-        throw error;
+        return false;
     }
 }
 
@@ -126,9 +152,17 @@ exports.handler = async (event, context) => {
                 timestamp: new Date().toISOString(),
             };
 
-            console.log('Logging user OAuth completion');
+            // Save user data to Netlify Blobs
+            console.log('Saving user data to Netlify Blobs');
+            const dataSaved = await saveUserDataToBlobs(userData);
+            if (dataSaved) {
+                console.log('User data saved to Netlify Blobs successfully');
+            } else {
+                console.log('Failed to save user data to Netlify Blobs, but continuing...');
+            }
+            
+            // Also log to console
             await logUserData(userData);
-            console.log('User OAuth logged successfully');
             
             // Assign verified role to the user
             console.log('Assigning verified role to user:', id);
