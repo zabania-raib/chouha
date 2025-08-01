@@ -1,6 +1,6 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, REST, Routes, AttachmentBuilder } = require('discord.js');
-const { getStore } = require('@netlify/blobs');
+const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
@@ -97,66 +97,65 @@ async function checkAndAssignRole(userId) {
     console.log(`Bot: Checking role assignment for user ${userId} (no database check needed)`);
 }
 
-// Function to export all stored emails from Netlify Blobs
+// Function to export all stored emails via Netlify Function
 async function exportAllEmails() {
     try {
-        console.log('Bot: Starting email export from Netlify Blobs...');
+        console.log('Bot: Starting email export via Netlify Function...');
         
-        // Get the Netlify Blobs store
-        const store = getStore('user-emails');
+        const netlifyUrl = process.env.NETLIFY_SITE_URL;
+        const exportToken = process.env.EXPORT_API_TOKEN;
         
-        // List all stored user data
-        const { blobs } = await store.list();
-        
-        if (!blobs || blobs.length === 0) {
-            console.log('Bot: No emails found in storage');
-            return { success: false, message: 'No emails found in storage', data: [] };
+        if (!netlifyUrl || !exportToken) {
+            console.error('Bot: Missing NETLIFY_SITE_URL or EXPORT_API_TOKEN environment variables');
+            return {
+                success: false,
+                message: 'Export configuration missing. Please check environment variables.',
+                data: []
+            };
         }
         
-        console.log(`Bot: Found ${blobs.length} stored user records`);
+        const exportUrl = `${netlifyUrl}/.netlify/functions/export-emails`;
+        console.log(`Bot: Calling export function at: ${exportUrl}`);
         
-        // Retrieve all user data
-        const allUserData = [];
+        // Call the Netlify Function
+        const response = await axios.post(exportUrl, {}, {
+            headers: {
+                'Authorization': `Bearer ${exportToken}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 30000 // 30 second timeout
+        });
         
-        for (const blob of blobs) {
-            try {
-                const userData = await store.get(blob.key);
-                if (userData) {
-                    const parsedData = JSON.parse(userData);
-                    
-                    // Format data to match your requested structure
-                    const formattedData = {
-                        _id: `blob_${blob.key}`,
-                        userid: parsedData.discordId,
-                        username: parsedData.username,
-                        premium_type: 0, // Default value
-                        email: parsedData.email,
-                        verified: parsedData.status === 'Verified',
-                        avatarURL: parsedData.avatarURL || '',
-                        verifiedDate: parsedData.verifiedDate,
-                        storage_key: blob.key,
-                        last_updated: blob.lastModified || new Date().toISOString()
-                    };
-                    
-                    allUserData.push(formattedData);
-                }
-            } catch (error) {
-                console.error(`Bot: Error parsing data for key ${blob.key}:`, error.message);
-            }
+        if (response.status === 200 && response.data.success) {
+            console.log(`Bot: Successfully exported ${response.data.data.exportInfo.totalRecords} user records`);
+            return {
+                success: true,
+                message: response.data.message,
+                data: response.data.data.users,
+                exportDate: response.data.data.exportInfo.exportDate,
+                totalRecords: response.data.data.exportInfo.totalRecords
+            };
+        } else {
+            console.error('Bot: Export function returned error:', response.data);
+            return {
+                success: false,
+                message: response.data.message || 'Export function failed',
+                data: []
+            };
         }
-        
-        console.log(`Bot: Successfully exported ${allUserData.length} user records`);
-        
-        return {
-            success: true,
-            message: `Successfully exported ${allUserData.length} user records`,
-            data: allUserData,
-            exportDate: new Date().toISOString(),
-            totalRecords: allUserData.length
-        };
         
     } catch (error) {
-        console.error('Bot: Error exporting emails from Netlify Blobs:', error);
+        console.error('Bot: Error calling export function:', error.message);
+        
+        if (error.response) {
+            console.error('Bot: Export function HTTP error:', error.response.status, error.response.data);
+            return {
+                success: false,
+                message: `Export failed: ${error.response.data?.message || error.message}`,
+                data: []
+            };
+        }
+        
         return {
             success: false,
             message: `Export failed: ${error.message}`,
