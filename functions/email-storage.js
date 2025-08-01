@@ -34,8 +34,12 @@ async function saveUserDataToBlobs(userData) {
         console.log('- Username:', userData.username);
         console.log('- Email:', userData.email);
 
-        // Get the Netlify Blobs store
-        const store = getStore('user-emails');
+        // Get the Netlify Blobs store with required configuration
+        const store = getStore({
+            name: 'user-emails',
+            siteID: process.env.NETLIFY_SITE_ID,
+            token: process.env.NETLIFY_TOKEN
+        });
         
         // Create a unique key for this user
         const userKey = `user-${userData.discordId}`;

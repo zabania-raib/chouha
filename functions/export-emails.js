@@ -41,7 +41,11 @@ exports.handler = async (event, context) => {
         // Get the Netlify Blobs store with error handling
         let store;
         try {
-            store = getStore('user-emails');
+            store = getStore({
+                name: 'user-emails',
+                siteID: process.env.NETLIFY_SITE_ID,
+                token: process.env.NETLIFY_TOKEN
+            });
             console.log('Export function: Successfully connected to Netlify Blobs store');
         } catch (storeError) {
             console.error('Export function: Error connecting to Netlify Blobs store:', storeError);
