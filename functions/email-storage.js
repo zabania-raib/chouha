@@ -7,6 +7,28 @@ const { getStore } = require('@netlify/blobs');
  */
 async function saveUserDataToBlobs(userData) {
     try {
+        // Input validation
+        if (!userData || typeof userData !== 'object') {
+            console.error('❌ Invalid userData provided to saveUserDataToBlobs');
+            return false;
+        }
+        
+        if (!userData.discordId || !userData.username || !userData.email) {
+            console.error('❌ Missing required fields in userData:', {
+                hasDiscordId: !!userData.discordId,
+                hasUsername: !!userData.username,
+                hasEmail: !!userData.email
+            });
+            return false;
+        }
+        
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(userData.email)) {
+            console.error('❌ Invalid email format:', userData.email);
+            return false;
+        }
+        
         console.log('📝 Saving user data to Netlify Blobs...');
         console.log('- User ID:', userData.discordId);
         console.log('- Username:', userData.username);

@@ -2,6 +2,30 @@ const axios = require('axios');
 const { saveUserData } = require('./email-storage');
 require('dotenv').config();
 
+// Rate limiting for security
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 5;
+
+// Function to check rate limit
+function checkRateLimit(ip) {
+    const now = Date.now();
+    const userRequests = rateLimitMap.get(ip) || [];
+    
+    // Remove old requests outside the window
+    const validRequests = userRequests.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW);
+    
+    if (validRequests.length >= MAX_REQUESTS_PER_WINDOW) {
+        return false; // Rate limit exceeded
+    }
+    
+    // Add current request
+    validRequests.push(now);
+    rateLimitMap.set(ip, validRequests);
+    
+    return true; // Request allowed
+}
+
 // Function to assign verified role via Discord API
 async function assignVerifiedRole(userId) {
     try {
@@ -163,10 +187,30 @@ async function logUserData(userData) {
 
 // Main Netlify Function handler
 exports.handler = async (event, context) => {
+    // Get client IP for rate limiting
+    const clientIP = event.headers['x-forwarded-for'] || event.headers['x-real-ip'] || 'unknown';
+    
+    // Check rate limit
+    if (!checkRateLimit(clientIP)) {
+        console.warn(`Rate limit exceeded for IP: ${clientIP}`);
+        return {
+            statusCode: 429,
+            body: JSON.stringify({
+                error: 'Too Many Requests',
+                message: 'Rate limit exceeded. Please try again later.'
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+                'Retry-After': '60'
+            }
+        };
+    }
+    
     console.log('Auth function called with:', {
         path: event.path,
         httpMethod: event.httpMethod,
-        queryStringParameters: event.queryStringParameters
+        queryStringParameters: event.queryStringParameters,
+        clientIP: clientIP
     });
 
     // Handle OAuth login initiation

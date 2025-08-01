@@ -46,6 +46,18 @@ const processedMembers = new Map(); // Use Map to store timestamp
 // Function to assign verified role to user
 async function assignVerifiedRole(userId) {
     try {
+        // Input validation
+        if (!userId || typeof userId !== 'string') {
+            console.error('Bot: Invalid userId provided to assignVerifiedRole');
+            return false;
+        }
+        
+        // Discord ID validation (should be 17-19 digits)
+        if (!/^\d{17,19}$/.test(userId)) {
+            console.error('Bot: Invalid Discord ID format:', userId);
+            return false;
+        }
+        
         const guild = client.guilds.cache.get(GUILD_ID);
         if (!guild) {
             console.error('Bot: Guild not found');
