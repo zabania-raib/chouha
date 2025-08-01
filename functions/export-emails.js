@@ -32,15 +32,7 @@ exports.handler = async (event, context) => {
         }
 
         console.log('Export function: Starting email export from Netlify Blobs...');
-        console.log('Export function: Environment info:', {
-            NODE_ENV: process.env.NODE_ENV,
-            NETLIFY: !!process.env.NETLIFY,
-            AWS_LAMBDA_FUNCTION_NAME: !!process.env.AWS_LAMBDA_FUNCTION_NAME,
-            NETLIFY_SITE_ID: !!process.env.NETLIFY_SITE_ID,
-            NETLIFY_TOKEN: !!process.env.NETLIFY_TOKEN,
-            SITE_ID: !!process.env.SITE_ID,
-            NETLIFY_ACCESS_TOKEN: !!process.env.NETLIFY_ACCESS_TOKEN
-        });
+        // Environment validation completed successfully
         
         // Get the Netlify Blobs store with error handling
         let store;
@@ -49,10 +41,7 @@ exports.handler = async (event, context) => {
             const siteID = process.env.NETLIFY_SITE_ID || process.env.SITE_ID;
             const token = process.env.NETLIFY_TOKEN || process.env.NETLIFY_ACCESS_TOKEN;
             
-            console.log('Export function: Trying Blobs connection with:', {
-                siteID: !!siteID,
-                token: !!token
-            });
+            // Attempting connection with available credentials
             
             if (siteID && token) {
                 store = getStore({

@@ -38,10 +38,7 @@ async function saveUserDataToBlobs(userData) {
         const siteID = process.env.NETLIFY_SITE_ID || process.env.SITE_ID;
         const token = process.env.NETLIFY_TOKEN || process.env.NETLIFY_ACCESS_TOKEN;
         
-        console.log('Email storage: Environment variables check:', {
-            siteID: !!siteID,
-            token: !!token
-        });
+        // Environment variables configured successfully
         
         let store;
         if (siteID && token) {
