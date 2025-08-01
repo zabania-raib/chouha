@@ -32,22 +32,11 @@ exports.handler = async (event, context) => {
         }
 
         console.log('Export function: Starting email export from Netlify Blobs...');
-        
-        // Check if we're in a Netlify environment
-        if (!process.env.NETLIFY) {
-            console.error('Export function: Not running in Netlify environment');
-            return {
-                statusCode: 500,
-                body: JSON.stringify({
-                    success: false,
-                    message: 'Function must run in Netlify environment',
-                    error: 'Not in Netlify environment'
-                }),
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            };
-        }
+        console.log('Export function: Environment info:', {
+            NODE_ENV: process.env.NODE_ENV,
+            NETLIFY: !!process.env.NETLIFY,
+            AWS_LAMBDA_FUNCTION_NAME: !!process.env.AWS_LAMBDA_FUNCTION_NAME
+        });
         
         // Get the Netlify Blobs store with error handling
         let store;
