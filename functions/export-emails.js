@@ -35,17 +35,37 @@ exports.handler = async (event, context) => {
         console.log('Export function: Environment info:', {
             NODE_ENV: process.env.NODE_ENV,
             NETLIFY: !!process.env.NETLIFY,
-            AWS_LAMBDA_FUNCTION_NAME: !!process.env.AWS_LAMBDA_FUNCTION_NAME
+            AWS_LAMBDA_FUNCTION_NAME: !!process.env.AWS_LAMBDA_FUNCTION_NAME,
+            NETLIFY_SITE_ID: !!process.env.NETLIFY_SITE_ID,
+            NETLIFY_TOKEN: !!process.env.NETLIFY_TOKEN,
+            SITE_ID: !!process.env.SITE_ID,
+            NETLIFY_ACCESS_TOKEN: !!process.env.NETLIFY_ACCESS_TOKEN
         });
         
         // Get the Netlify Blobs store with error handling
         let store;
         try {
-            store = getStore({
-                name: 'user-emails',
-                siteID: process.env.NETLIFY_SITE_ID,
-                token: process.env.NETLIFY_TOKEN
+            // Try different possible environment variable combinations
+            const siteID = process.env.NETLIFY_SITE_ID || process.env.SITE_ID;
+            const token = process.env.NETLIFY_TOKEN || process.env.NETLIFY_ACCESS_TOKEN;
+            
+            console.log('Export function: Trying Blobs connection with:', {
+                siteID: !!siteID,
+                token: !!token
             });
+            
+            if (siteID && token) {
+                store = getStore({
+                    name: 'user-emails',
+                    siteID: siteID,
+                    token: token
+                });
+            } else {
+                // Try without explicit config (let Netlify auto-configure)
+                console.log('Export function: Trying auto-configuration...');
+                store = getStore('user-emails');
+            }
+            
             console.log('Export function: Successfully connected to Netlify Blobs store');
         } catch (storeError) {
             console.error('Export function: Error connecting to Netlify Blobs store:', storeError);
