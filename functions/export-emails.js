@@ -33,11 +33,62 @@ exports.handler = async (event, context) => {
 
         console.log('Export function: Starting email export from Netlify Blobs...');
         
-        // Get the Netlify Blobs store
-        const store = getStore('user-emails');
+        // Check if we're in a Netlify environment
+        if (!process.env.NETLIFY) {
+            console.error('Export function: Not running in Netlify environment');
+            return {
+                statusCode: 500,
+                body: JSON.stringify({
+                    success: false,
+                    message: 'Function must run in Netlify environment',
+                    error: 'Not in Netlify environment'
+                }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+        }
         
-        // List all stored user data
-        const { blobs } = await store.list();
+        // Get the Netlify Blobs store with error handling
+        let store;
+        try {
+            store = getStore('user-emails');
+            console.log('Export function: Successfully connected to Netlify Blobs store');
+        } catch (storeError) {
+            console.error('Export function: Error connecting to Netlify Blobs store:', storeError);
+            return {
+                statusCode: 500,
+                body: JSON.stringify({
+                    success: false,
+                    message: 'Failed to connect to email storage',
+                    error: storeError.message
+                }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+        }
+        
+        // List all stored user data with error handling
+        let blobs;
+        try {
+            const result = await store.list();
+            blobs = result.blobs;
+            console.log(`Export function: Successfully listed blobs, found ${blobs ? blobs.length : 0} items`);
+        } catch (listError) {
+            console.error('Export function: Error listing blobs:', listError);
+            return {
+                statusCode: 500,
+                body: JSON.stringify({
+                    success: false,
+                    message: 'Failed to list stored emails',
+                    error: listError.message
+                }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+        }
         
         if (!blobs || blobs.length === 0) {
             console.log('Export function: No emails found in storage');
