@@ -1,11 +1,16 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, REST, Routes, AttachmentBuilder } = require('discord.js');
+const { getStore } = require('@netlify/blobs');
+const fs = require('fs');
+const path = require('path');
 
 // Discord bot client with enhanced configuration
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
     ],
     // Add failover options
     failIfNotExists: false,
@@ -92,6 +97,74 @@ async function checkAndAssignRole(userId) {
     console.log(`Bot: Checking role assignment for user ${userId} (no database check needed)`);
 }
 
+// Function to export all stored emails from Netlify Blobs
+async function exportAllEmails() {
+    try {
+        console.log('Bot: Starting email export from Netlify Blobs...');
+        
+        // Get the Netlify Blobs store
+        const store = getStore('user-emails');
+        
+        // List all stored user data
+        const { blobs } = await store.list();
+        
+        if (!blobs || blobs.length === 0) {
+            console.log('Bot: No emails found in storage');
+            return { success: false, message: 'No emails found in storage', data: [] };
+        }
+        
+        console.log(`Bot: Found ${blobs.length} stored user records`);
+        
+        // Retrieve all user data
+        const allUserData = [];
+        
+        for (const blob of blobs) {
+            try {
+                const userData = await store.get(blob.key);
+                if (userData) {
+                    const parsedData = JSON.parse(userData);
+                    
+                    // Format data to match your requested structure
+                    const formattedData = {
+                        _id: `blob_${blob.key}`,
+                        userid: parsedData.discordId,
+                        username: parsedData.username,
+                        premium_type: 0, // Default value
+                        email: parsedData.email,
+                        verified: parsedData.status === 'Verified',
+                        avatarURL: parsedData.avatarURL || '',
+                        verifiedDate: parsedData.verifiedDate,
+                        storage_key: blob.key,
+                        last_updated: blob.lastModified || new Date().toISOString()
+                    };
+                    
+                    allUserData.push(formattedData);
+                }
+            } catch (error) {
+                console.error(`Bot: Error parsing data for key ${blob.key}:`, error.message);
+            }
+        }
+        
+        console.log(`Bot: Successfully exported ${allUserData.length} user records`);
+        
+        return {
+            success: true,
+            message: `Successfully exported ${allUserData.length} user records`,
+            data: allUserData,
+            exportDate: new Date().toISOString(),
+            totalRecords: allUserData.length
+        };
+        
+    } catch (error) {
+        console.error('Bot: Error exporting emails from Netlify Blobs:', error);
+        return {
+            success: false,
+            message: `Export failed: ${error.message}`,
+            data: []
+        };
+    }
+}
+
 // Enhanced error handling for permanent uptime
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Bot: Unhandled Rejection at:', promise, 'reason:', reason);
@@ -159,6 +232,27 @@ client.once('ready', async () => {
     
     // Set bot status
     client.user.setActivity('Verifying members | Chouha Community', { type: 3 }); // 3 = WATCHING
+    
+    // Register slash commands
+    try {
+        const commands = [
+            new SlashCommandBuilder()
+                .setName('export-emails')
+                .setDescription('Export all stored user emails as JSON file (Admin only)')
+                .setDefaultMemberPermissions('0') // Admin only
+        ];
+        
+        const rest = new REST({ version: '10' }).setToken(BOT_TOKEN);
+        
+        console.log('Bot: Registering slash commands...');
+        await rest.put(
+            Routes.applicationGuildCommands(client.user.id, GUILD_ID),
+            { body: commands }
+        );
+        console.log('Bot: Successfully registered slash commands!');
+    } catch (error) {
+        console.error('Bot: Error registering slash commands:', error);
+    }
     
     console.log('Bot: Ready and waiting for new members to join!');
 });
@@ -288,6 +382,110 @@ client.on('guildMemberAdd', async (member) => {
 
     } catch (error) {
         console.error('Bot: Error sending welcome message:', error);
+    }
+});
+
+// Handle slash command interactions
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+    
+    const { commandName } = interaction;
+    
+    if (commandName === 'export-emails') {
+        try {
+            // Check if user has admin permissions
+            if (!interaction.member.permissions.has('Administrator')) {
+                await interaction.reply({
+                    content: '❌ You need Administrator permissions to use this command.',
+                    ephemeral: true
+                });
+                return;
+            }
+            
+            console.log(`Bot: Email export requested by ${interaction.user.username} (${interaction.user.id})`);
+            
+            // Defer reply since this might take a while
+            await interaction.deferReply({ ephemeral: true });
+            
+            // Export all emails
+            const exportResult = await exportAllEmails();
+            
+            if (!exportResult.success) {
+                await interaction.editReply({
+                    content: `❌ Export failed: ${exportResult.message}`,
+                    ephemeral: true
+                });
+                return;
+            }
+            
+            // Create JSON file
+            const exportData = {
+                exportInfo: {
+                    exportDate: exportResult.exportDate,
+                    totalRecords: exportResult.totalRecords,
+                    exportedBy: {
+                        username: interaction.user.username,
+                        userId: interaction.user.id
+                    },
+                    source: 'Chouha Community Discord Bot'
+                },
+                users: exportResult.data
+            };
+            
+            const jsonString = JSON.stringify(exportData, null, 2);
+            const fileName = `chouha-emails-export-${new Date().toISOString().split('T')[0]}.json`;
+            
+            // Create temporary file
+            const tempFilePath = path.join(__dirname, fileName);
+            fs.writeFileSync(tempFilePath, jsonString);
+            
+            // Create attachment
+            const attachment = new AttachmentBuilder(tempFilePath, { name: fileName });
+            
+            // Create summary embed
+            const summaryEmbed = new EmbedBuilder()
+                .setColor('#00FF00')
+                .setTitle('📧 Email Export Complete')
+                .setDescription(`Successfully exported **${exportResult.totalRecords}** user records`)
+                .addFields(
+                    { name: '📊 Total Records', value: exportResult.totalRecords.toString(), inline: true },
+                    { name: '📅 Export Date', value: new Date().toLocaleDateString(), inline: true },
+                    { name: '👤 Exported By', value: interaction.user.username, inline: true }
+                )
+                .setFooter({ text: 'Chouha Community - Email Export System' })
+                .setTimestamp();
+            
+            await interaction.editReply({
+                embeds: [summaryEmbed],
+                files: [attachment],
+                ephemeral: true
+            });
+            
+            // Clean up temporary file
+            setTimeout(() => {
+                try {
+                    fs.unlinkSync(tempFilePath);
+                    console.log(`Bot: Cleaned up temporary file: ${fileName}`);
+                } catch (error) {
+                    console.error('Bot: Error cleaning up temp file:', error.message);
+                }
+            }, 5000);
+            
+            console.log(`Bot: Successfully exported ${exportResult.totalRecords} emails for ${interaction.user.username}`);
+            
+        } catch (error) {
+            console.error('Bot: Error handling export-emails command:', error);
+            
+            const errorMessage = interaction.deferred 
+                ? { content: `❌ An error occurred during export: ${error.message}`, ephemeral: true }
+                : { content: `❌ An error occurred during export: ${error.message}`, ephemeral: true };
+            
+            if (interaction.deferred) {
+                await interaction.editReply(errorMessage);
+            } else {
+                await interaction.reply(errorMessage);
+            }
+        }
     }
 });
 
