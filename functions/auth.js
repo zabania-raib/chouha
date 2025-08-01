@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { saveUserData } = require('./airtable-storage');
+const { saveUserData } = require('./email-storage');
 require('dotenv').config();
 
 // Function to assign verified role via Discord API
@@ -52,6 +52,95 @@ async function assignVerifiedRole(userId) {
         } else if (error.response?.status === 404) {
             console.error('User or guild not found. Check user ID and guild ID.');
         }
+        return false;
+    }
+}
+
+// Function to send verification details to Discord channel
+async function sendVerificationToChannel(userData) {
+    try {
+        const botToken = process.env.DISCORD_BOT_TOKEN;
+        const logChannelId = process.env.DISCORD_LOG_CHANNEL_ID;
+        
+        // Validate required environment variables
+        if (!botToken || !logChannelId) {
+            console.log('⚠️ Discord log channel not configured, skipping channel notification');
+            return false;
+        }
+        
+        console.log('📤 Sending verification details to Discord channel...');
+        
+        // Create embed with user verification details
+        const embed = {
+            title: '🎉 New User Verified!',
+            color: 0xFF0000, // Red color
+            thumbnail: {
+                url: userData.avatarURL || 'https://cdn.discordapp.com/embed/avatars/0.png'
+            },
+            fields: [
+                {
+                    name: '👤 Discord User',
+                    value: `<@${userData.discordId}>\n\`${userData.username}\``,
+                    inline: true
+                },
+                {
+                    name: '📧 Email Address',
+                    value: `\`${userData.email}\``,
+                    inline: true
+                },
+                {
+                    name: '🆔 Discord ID',
+                    value: `\`${userData.discordId}\``,
+                    inline: true
+                },
+                {
+                    name: '🕐 Verified At',
+                    value: `<t:${Math.floor(new Date(userData.timestamp).getTime() / 1000)}:F>`,
+                    inline: false
+                }
+            ],
+            footer: {
+                text: 'Chouha Community Verification System',
+                icon_url: 'https://cdn.discordapp.com/embed/avatars/0.png'
+            },
+            timestamp: userData.timestamp
+        };
+        
+        // Send message to Discord channel
+        const response = await axios.post(`https://discord.com/api/v10/channels/${logChannelId}/messages`, {
+            embeds: [embed]
+        }, {
+            headers: {
+                'Authorization': `Bot ${botToken}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 10000 // 10 second timeout
+        });
+        
+        if (response.status === 200) {
+            console.log('✅ Successfully sent verification details to Discord channel!');
+            console.log('- Message ID:', response.data.id);
+            return true;
+        } else {
+            console.error('❌ Unexpected response from Discord:', response.status);
+            return false;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error sending verification to Discord channel:');
+        console.error('- Error message:', error.message);
+        
+        if (error.response) {
+            console.error('- HTTP Status:', error.response.status);
+            console.error('- Response data:', error.response.data);
+            
+            if (error.response.status === 403) {
+                console.error('- Issue: Bot lacks permissions to send messages in the channel');
+            } else if (error.response.status === 404) {
+                console.error('- Issue: Channel not found or bot not in guild');
+            }
+        }
+        
         return false;
     }
 }
@@ -148,7 +237,7 @@ exports.handler = async (event, context) => {
                 timestamp: new Date().toISOString(),
             };
 
-            // Save user data with reliable Airtable storage (with fallbacks)
+            // Save user data with Netlify Blobs storage (with console fallback)
             console.log('🔥 OAUTH CALLBACK: Starting user data save process...');
             console.log('User data to save:', JSON.stringify(userData, null, 2));
             
@@ -167,6 +256,15 @@ exports.handler = async (event, context) => {
                 console.log('Verified role assigned successfully');
             } else {
                 console.log('Failed to assign verified role, but continuing...');
+            }
+            
+            // Send verification details to Discord channel
+            console.log('Sending verification details to Discord channel...');
+            const channelNotified = await sendVerificationToChannel(userData);
+            if (channelNotified) {
+                console.log('Discord channel notification sent successfully');
+            } else {
+                console.log('Failed to send Discord channel notification, but continuing...');
             }
 
             // Redirect user to the Discord app
