@@ -1,5 +1,5 @@
 [build]
-  command = "rm -rf node_modules package-lock.json && npm install"
+  command = "npm install"
   functions = "functions"
 
 [[redirects]]
