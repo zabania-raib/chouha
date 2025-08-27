@@ -1,20 +1,4 @@
 {
-  "name": "chouha-community-bot",
-  "version": "1.0.0",
-  "description": "Chouha Community Discord Bot with OAuth2 verification system",
-  "main": "start.js",
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "scripts": {
-    "start": "node start.js",
-    "bot": "node discord-bot.js",
-    "dev": "node discord-bot.js"
-  },
-  "keywords": ["discord", "bot", "oauth2", "verification", "community"],
-  "dependencies": {
-    "axios": "^1.7.2",
-    "discord.js": "^14.14.1",
-    "dotenv": "^16.4.5"
-  }
+  "name": "chouha-static",
+  "version": "1.0.0"
 }

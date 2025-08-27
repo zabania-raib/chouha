@@ -1,8 +1,6 @@
-// Use Netlify's built-in Blobs API available in the runtime
-
 /**
- * Netlify Function to export all stored emails from Netlify Blobs
- * This function can only run in the Netlify environment where Blobs are available
+ * Netlify Function to export all stored emails
+ * Simplified version without external dependencies
  */
 exports.handler = async (event, context) => {
     // Only allow POST requests
