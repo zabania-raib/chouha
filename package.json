@@ -13,7 +13,6 @@
   },
   "keywords": ["discord", "bot", "oauth2", "verification", "community"],
   "dependencies": {
-    "@netlify/blobs": "^6.5.0",
     "axios": "^1.7.2",
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.5"

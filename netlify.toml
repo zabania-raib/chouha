@@ -1,5 +1,5 @@
 [build]
-  command = "npm ci --force"
+  command = "npm install"
   functions = "functions"
 
 [[redirects]]
