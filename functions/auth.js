@@ -1,4 +1,6 @@
-// Minimal auth function without any imports
+const axios = require('axios');
+const { saveUserData } = require('./email-storage');
+require('dotenv').config();
 
 // Rate limiting for security
 const rateLimitMap = new Map();

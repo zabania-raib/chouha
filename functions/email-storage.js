@@ -1,4 +1,4 @@
-// Use Netlify's built-in Blobs API available in the runtime
+const { getStore } = require('@netlify/blobs');
 
 /**
  * Save user data to Netlify Blobs
@@ -34,12 +34,24 @@ async function saveUserDataToBlobs(userData) {
         console.log('- Username:', userData.username);
         console.log('- Email:', userData.email);
 
-        // Use Netlify's built-in Blobs API available in the runtime
-        const { getStore } = await import('@netlify/blobs');
+        // Get the Netlify Blobs store with fallback configuration
+        const siteID = process.env.NETLIFY_SITE_ID || process.env.SITE_ID;
+        const token = process.env.NETLIFY_TOKEN || process.env.NETLIFY_ACCESS_TOKEN;
         
-        // Try auto-configuration first (recommended for Netlify Functions)
-        console.log('Email storage: Trying auto-configuration...');
-        const store = getStore('user-emails');
+        // Environment variables configured successfully
+        
+        let store;
+        if (siteID && token) {
+            store = getStore({
+                name: 'user-emails',
+                siteID: siteID,
+                token: token
+            });
+        } else {
+            // Try without explicit config (let Netlify auto-configure)
+            console.log('Email storage: Trying auto-configuration...');
+            store = getStore('user-emails');
+        }
         
         // Create a unique key for this user
         const userKey = `user-${userData.discordId}`;
