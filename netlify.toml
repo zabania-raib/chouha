@@ -1,5 +1,5 @@
 [build]
-  command = "npm install"
+  command = "echo 'Skipping npm install to avoid plugin conflicts' && mkdir -p node_modules"
   functions = "functions"
 
 [[redirects]]
